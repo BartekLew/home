@@ -1,0 +1,41 @@
+(defun redstr (fun acc str)
+	(if (equal str "") acc
+	(let ((v (apply fun (list acc (char str 0)))))
+	(redstr fun v (subseq str 1)))))
+
+(defun headr? (line)
+	(and (redstr #'(lambda (a c) (and a (char= c #\=))) t line) "h1"))
+
+(defun par? (line)
+	(and (equal line "") "p"))
+
+(defun match (x options)
+	(and options
+		(let ((special (apply (car options) (list x))))
+		(or special (match x (cdr options))))))
+
+(defun special? (line)
+	(match line '(par? headr?)))
+
+(defun line+ (a b)
+	(let ((s (special? b)))
+	(if s (list s a) (list (concatenate 'string a " " b)))))
+
+(defun %tag< (acc input)
+	(let ((f (read-line input nil :eof)))
+	(if (eq f :eof) (list "p" acc :eof)
+	(let ((sum (line+ acc f)))
+	(if (eq (second sum) nil)
+		(%tag< (first sum) input)
+		sum)))))
+
+(defun tag< (input) (%tag< "" input))
+
+(defun series (chunk-fun< stop-fun?)
+	(let* ((chunk (apply chunk-fun< '())))
+	(if (apply stop-fun? (list chunk)) (list chunk)
+		(cons chunk (series chunk-fun< stop-fun?)))))
+
+(defun art< (input)
+	(series (lambda () (tag< input)) (lambda (l) (eql (third l) :eof))))
+
