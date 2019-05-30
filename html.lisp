@@ -19,7 +19,7 @@
 
 (defun tag> (type params content)
 	(let ((parstr (params>str params)))
-	(if (eql content '()) (format nil "<~A~A/>" type parstr)
+	(if (eql content '()) (format nil "<~A~A/>~%" type parstr)
 	(format nil "<~A~A>~%~A~%</~A>~%" type parstr (content> content) type))))
 
 (defun tags> (l)
@@ -35,9 +35,32 @@
 		(tag> (first x) (second x) (third x))
 	(tags> x))))
 
+(defun join (joiner list)
+	(if (eql list nil) '()
+	(if (eql (second list) nil) (car list)
+	(apply joiner (list (car list) (join joiner (cdr list)))))))
+
+(defun css-rule (selector rules)
+	(format nil "~A {~%	~A~%}~%" selector
+		(join #'(lambda (a c) (format nil "~A;~%	~A" a c)) rules)))
+
+(defun stylesheet (rules)
+	(join (lambda (a c) (format nil "~A~%~A" a c))
+		(mapcar (lambda (x) (css-rule (first x) (second x))) rules)))
+
 (defun template (body)
 	(tag> "html" '() `(
 		("head" () (
 			("meta" ("charset" "utf-8") ())
 			("meta" ("name" "viewport" "content" "width=device-width, initial-scale=1.0") ())
-		))("body" () ,body))))
+			("style" ("type" "text/css") ,(stylesheet '(
+				("body" ("background-color: #d0f0d0" "color: #000080"))
+				("#art" ("width: 70ex" "margin-left: auto" "margin-right: auto"))
+				("h1" ("text-align: center"))
+				("p" ("text-align: justify"))
+			)))
+		))
+		("body" () (
+			("div" ("id" "art") ,body))))))
+
+
