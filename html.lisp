@@ -1,13 +1,21 @@
-(defun tag>html (tag)
-	(if (string= (second tag) "") ""
-	(let ((type (first tag)) (val (second tag)))
-	(format nil "<~A>~A</~A>" type val type))))
+(load "util.lisp")
+(load "js.lisp")
 
-(defun art>html (art)
-	(if (eql art '()) ""
-	(concatenate 'string
-		(tag>html (car art))
-		(art>html (cdr art)))))
+;; Create css-rule string
+(defun css-rule (selector rules)
+	(format nil "~A {~%	~A~%}~%" selector
+		(join #'(lambda (a c) (format nil "~A;~%	~A" a c)) rules)))
+
+
+;; Take css-rules (in list of lists form) and build css stylesheet
+(defun stylesheet (rules)
+	(join (lambda (a c) (format nil "~A~%~A" a c))
+		(mapcar (lambda (x) (css-rule (first x) (second x))) rules)))
+
+
+;; Create tag representning COPYLEFT symbol.
+(defun copyleft ()
+	(!+ 'tag := "span" :& '("style" "display:inline-block; transform:rotate(180deg)") :< "&copy;"))
 
 (defun params>str (list)
 	(if (eql list '()) ""
@@ -17,49 +25,44 @@
 		(rest (cdr r1)))
 	(format nil " ~A=\"~A\"~A" nkey nval (params>str rest)))))
 
-(defun tag> (type params content)
-	(let ((parstr (params>str params)))
+(defclass tag ()
+	((type :initarg := :initform "span")
+	(par :initarg :& :initform '())
+	(content :initarg :< :initform nil)))
+
+(defmethod initialize-instance :after ((this tag) &key)
+	(with-slots (type content) this
+	(if (and (string= type "div") (eql content nil)) (setf content ""))))
+
+(defmethod print-object ((this tag) out)
+	(with-slots (type par content) this
+	(format out "<TAG \"~A\" ~A: ~A>" type (params>str par) content)))
+
+(defgeneric html (src))
+(defmethod html ((text string))
+	text)
+
+(defmethod html ((this tag))
+(with-slots (type par content) this
+	(let ((parstr (params>str par)))
 	(if (eql content '()) (format nil "<~A~A/>~%" type parstr)
-	(format nil "<~A~A>~%~A~%</~A>~%" type parstr (content> content) type))))
+	(format nil "<~A~A>~%~A~%</~A>~%" type parstr (html content) type)))))
 
-(defun tags> (l)
-	(if (eql l '()) ""
-		(let ((f (first l)))
-		(concatenate 'string
-			(tag> (first f) (second f) (third f))
-			"" (tags> (cdr l))))))
+(defmethod html ((l list))
+	(if l (concatenate 'string (html (car l)) (html (cdr l)))
+		""))
 
-(defun content> (x)
-	(if (stringp x) x
-	(if (stringp (first x))
-		(tag> (first x) (second x) (third x))
-	(tags> x))))
+(defvar *base-style* '(
+	("body" ("background-color: #d0f0d0" "color: #000080"))
+	("#art" ("max-width: 75ex" "margin-left: auto" "margin-right: auto"
+		"margin-top:2em" "margin-bottom: 4em" "font-size: 13pt"))
+	("h1" ("text-align: center" "margin-bottom: 2em" "font-size: 2em"))
+	("p" ("line-height: 1.4" "text-indent: 1em"))
+	("#footer" ("font-size: 0.9em" "color: #00a040" "text-align:center"
+		"margin-bottom: 2em"))
+	("a" ("color: inherit" "font-size: inherit"))
+))
 
-(defun join (joiner list)
-	(if (eql list nil) '()
-	(if (eql (second list) nil) (car list)
-	(apply joiner (list (car list) (join joiner (cdr list)))))))
-
-(defun css-rule (selector rules)
-	(format nil "~A {~%	~A~%}~%" selector
-		(join #'(lambda (a c) (format nil "~A;~%	~A" a c)) rules)))
-
-(defun stylesheet (rules)
-	(join (lambda (a c) (format nil "~A~%~A" a c))
-		(mapcar (lambda (x) (css-rule (first x) (second x))) rules)))
-
-(defun copyleft ()
-	(tag> "span" '("style" "display:inline-block; transform:rotate(180deg)") "&copy;"))
-
-(defun template (body style footer)
-	(tag> "html" '() `(
-		("head" () (
-			("meta" ("charset" "utf-8") ())
-			("meta" ("name" "viewport" "content" "width=device-width, initial-scale=1.0") ())
-			("style" ("type" "text/css") ,style)
-		))
-		("body" () (
-			("div" ("id" "art") ,body)
-			("div" ("id" "footer") ,footer))))))
-
+(defun addStyle (key vals)
+	(setf *base-style* (append *base-style* `((,key ,vals)))))
 
