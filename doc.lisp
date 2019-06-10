@@ -38,6 +38,7 @@
 	(content
 	(title :initarg :title :initform "Peace!")
 	(style :initarg :style :initform '())
+	(footer :initarg :footer :initform '())
 	(init :initarg :init :initform '())))
 
 (defmethod initialize-instance :after((this document) &key from-file by-val)
@@ -50,7 +51,7 @@
 	(if by-val (setf (slot-value this 'content) by-val))))
 
 (defmethod html ((d document))
-	(with-slots (content title style init) d
+	(with-slots (content title style init footer) d
 	(html (!+ 'tag := "html" :< (list
 		(!+ 'tag := "head" :< (list
 			(!+ 'tag := "title" :< title)
@@ -60,5 +61,6 @@
 			(if init (!+ 'tag := "script" :& '("type" "text/javascript") :< (js (as-function "init" init))))
 		))
 		(!+ 'tag := "body" :& (if init '("onload" "init()") nil)
-			:< (!+ 'tag := "div" :& '("id" "art") :< content)))))))
+			:< (list (!+ 'tag := "div" :& '("id" "art") :< content)
+				(!+ 'tag := "div" :& '("id" "footer") :< footer))))))))
 

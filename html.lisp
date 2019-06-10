@@ -26,9 +26,9 @@
 	(format nil " ~A=\"~A\"~A" nkey nval (params>str rest)))))
 
 (defclass tag ()
-	((type :initarg := :initform "span")
+	((type :initarg := :initform "span" :reader tagtype)
 	(par :initarg :& :initform '())
-	(content :initarg :< :initform nil)))
+	(content :initarg :< :initform nil :reader content)))
 
 (defmethod initialize-instance :after ((this tag) &key)
 	(with-slots (type content) this
@@ -55,7 +55,7 @@
 (defvar *base-style* '(
 	("body" ("background-color: #d0f0d0" "color: #000080"))
 	("#art" ("max-width: 75ex" "margin-left: auto" "margin-right: auto"
-		"margin-top:2em" "margin-bottom: 4em" "font-size: 13pt"))
+		"margin-top:5em" "margin-bottom: 4em" "font-size: 13pt"))
 	("h1" ("text-align: center" "margin-bottom: 2em" "font-size: 2em"))
 	("p" ("line-height: 1.4" "text-indent: 1em"))
 	("#footer" ("font-size: 0.9em" "color: #00a040" "text-align:center"
