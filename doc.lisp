@@ -18,10 +18,9 @@
 
 (defun chunk (i)
 	(flet ((rdl () (rd i)))
-	(let*	((l (1st (lambda (x) 
-			(or (not x) (position-if-not #'white? x))) #'rdl))
+	(let*	((l (1st (orf #'not #'nonblank-line?) #'rdl))
 		(chunk (cons l (loop for x = (rdl)
-				until (or (not x) (not (position-if-not #'white? x)))
+				until (apply (orf #'not #'blank-line?) `(,x))
 				collect x))))
 	(cond ((eql (car chunk) nil) nil)
 		((headr? (car (last chunk)))

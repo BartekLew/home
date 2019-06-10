@@ -80,3 +80,14 @@
 	(let ((e (apply rdl '())))
 	(if e (if (apply pred (list e)) e (1st pred rdl)))))
 	
+(defun nonblank-line? (line)
+	(position-if-not #'white? line))
+
+(defun blank-line? (line)
+	(not (nonblank-line? line)))
+
+
+(defmacro orf (&rest funs)
+	`(lambda (&rest args) ,(cons 'or (loop for x in funs
+					collect `(apply ,x args)))))
+
