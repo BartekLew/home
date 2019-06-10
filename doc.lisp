@@ -5,6 +5,10 @@
 (defclass lines ()
 	((remaining :initarg :<  :initform '())))
 
+(defmethod print-object ((o lines) stream)
+	(with-slots (remaining) o
+	(format stream "<LINES (~A...)>" (car remaining))))
+
 (defgeneric rd (input))
 (defmethod rd ((i lines))
 	(with-slots (remaining) i
@@ -16,19 +20,31 @@
 (defun headr? (line)
 	(not (position-if-not (lambda (c) (eql c #\=)) line)))
 
+(defclass chunk ()
+	((content :initarg := :initform '())))
+
+(defmethod initialize-instance :after ((this chunk) &key loader)
+	(with-slots (content) this
+	(setf content (cons content
+		(loop for x = (apply loader '())
+			until (apply (orf #'not #'blank-line?) `(,x))
+			collect x)))))
+
+(defgeneric >tag (src))
+(defmethod >tag ((c chunk))
+	(with-slots (content) c
+	(if (first content)
+	(if (headr? (car (last content)))
+		(!+ 'tag := "h1" :< (join (sep #\Newline) (subseq content 0 (- (length content) 1))))
+		(!+ 'tag := "p" :< (join (sep #\Newline) content))))))
+
 (defun chunk (i)
 	(flet ((rdl () (rd i)))
-	(let*	((l (1st (orf #'not #'nonblank-line?) #'rdl))
-		(chunk (cons l (loop for x = (rdl)
-				until (apply (orf #'not #'blank-line?) `(,x))
-				collect x))))
-	(cond ((eql (car chunk) nil) nil)
-		((headr? (car (last chunk)))
-			(!+ 'tag := "h1" :< (join (sep #\Newline) (subseq chunk 0 (- (length chunk) 1)))))
-		(t (!+ 'tag := "p" :< (join (sep #\Newline) chunk)))))))
+	(let*	((l (1st (orf #'not #'nonblank-line?) #'rdl)))
+	(!+ 'chunk := l :loader #'rdl))))
 
 (defun chunks (lines)
-	(loop for x = (chunk lines)
+	(loop for x = (>tag (chunk lines))
 		until (eql x nil)
 		collect x))
 
