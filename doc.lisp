@@ -22,13 +22,22 @@
 
 (defclass chunk ()
 	((content :initarg := :initform '())))
+(defclass code-chunk (chunk) ())
+
+(defgeneric chunk-limiter (chunk))
+(defmethod chunk-limiter ((chunk chunk))
+	#'blank-line?)
+
+(defmethod chunk-limiter ((chunk code-chunk))
+	(lambda (line) (string= line "```")))
 
 (defmethod initialize-instance :after ((this chunk) &key loader)
 	(with-slots (content) this
-	(setf content (cons content
-		(loop for x = (apply loader '())
-			until (apply (orf #'not #'blank-line?) `(,x))
-			collect x)))))
+	(let ((rest (loop for x = (apply loader '())
+			until (apply (orf #'not (chunk-limiter this)) `(,x))
+			collect x)))
+	(setf content (if content (cons content rest)
+				rest)))))
 
 (defgeneric >tag (src))
 (defmethod >tag ((c chunk))
@@ -38,10 +47,15 @@
 		(!+ 'tag := "h1" :< (join (sep #\Newline) (subseq content 0 (- (length content) 1))))
 		(!+ 'tag := "p" :< (join (sep #\Newline) content))))))
 
+(defmethod >tag ((chunk code-chunk))
+	(with-slots (content) chunk
+	(!+ 'tag := "pre" :< (!+ 'tag := "code" :< (join (sep #\Newline) content)))))
+
 (defun chunk (i)
 	(flet ((rdl () (rd i)))
 	(let*	((l (1st (orf #'not #'nonblank-line?) #'rdl)))
-	(!+ 'chunk := l :loader #'rdl))))
+	(if (string= l "```") (!+ 'code-chunk :loader #'rdl)
+		(!+ 'chunk := l :loader #'rdl)))))
 
 (defun chunks (lines)
 	(loop for x = (>tag (chunk lines))

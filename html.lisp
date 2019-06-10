@@ -55,12 +55,18 @@
 (defvar *base-style* '(
 	("body" ("background-color: #d0f0d0" "color: #000080"))
 	("#art" ("max-width: 75ex" "margin-left: auto" "margin-right: auto"
-		"margin-top:5em" "margin-bottom: 4em" "font-size: 13pt"))
+		"margin-top:5em" "margin-bottom: 4em" "font-size: 14pt"))
 	("h1" ("text-align: center" "margin-bottom: 2em" "font-size: 2em"))
-	("p" ("line-height: 1.4" "text-indent: 1em"))
+	("p" ("line-height: 1.4" "text-indent: 1em" "margin-top: 0px"))
 	("#footer" ("font-size: 0.9em" "color: #00a040" "text-align:center"
 		"margin-bottom: 2em"))
 	("a" ("color: inherit" "font-size: inherit"))
+	("code" ("word-break: break-any"
+		"font-family: monospace" "color: #f0e0f0" "font-size: 0.8em"
+		"padding: 2em" "padding-top: 1em" "display: block"
+		"background-color: #004000" "margin-top: 2em" "font-weight:100"
+		"margin-bottom: -0.5em"))
+	("pre" ("margin-bottom: 0px" "padding: 0px"))
 ))
 
 (defun addStyle (key vals)
