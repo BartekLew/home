@@ -39,13 +39,33 @@
 	(setf content (if content (cons content rest)
 				rest)))))
 
+(defun modtag (mod content)
+	(cond	((eql mod #\`) (!+ 'tag := "span" :& '("class" "inline-code") :< content))
+		((eql mod #\%) (!+ 'tag := "i" :< content))))
+
+(defun ~format (string)
+	(if (string= string "") '()
+	(let ((modpos (position-if (lambda (c) (find c '(#\` #\%))) string)))
+	(if modpos
+	(if (and (> modpos 0) (eql #\\ (char string (- modpos 1))))
+		(list (subseq string 0 (- modpos 1)) (subseq string modpos))
+	(let*	((mod (char string modpos))
+		(endpos (position mod string :start (+ modpos 1))))
+	(append (list (subseq string 0 modpos)
+		(modtag mod (subseq string (+ modpos 1) endpos))
+		(~format (subseq string (+ endpos 1)))))))
+	`(,string)))))
+	
+(defun merge-lines (lines)
+	(~format (join (sep #\Newline) lines)))
+
 (defgeneric >tag (src))
 (defmethod >tag ((c chunk))
 	(with-slots (content) c
 	(if (first content)
 	(if (headr? (car (last content)))
-		(!+ 'tag := "h1" :< (join (sep #\Newline) (subseq content 0 (- (length content) 1))))
-		(!+ 'tag := "p" :< (join (sep #\Newline) content))))))
+		(!+ 'tag := "h1" :< (merge-lines (subseq content 0 (- (length content) 1))))
+		(!+ 'tag := "p" :< (merge-lines content))))))
 
 (defmethod >tag ((chunk code-chunk))
 	(with-slots (content) chunk

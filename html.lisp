@@ -45,8 +45,11 @@
 (defmethod html ((this tag))
 (with-slots (type par content) this
 	(let ((parstr (params>str par)))
-	(if (eql content '()) (format nil "<~A~A/>~%" type parstr)
-	(format nil "<~A~A>~%~A~%</~A>~%" type parstr (html content) type)))))
+	(if (eql content '())
+		(format nil "<~A~A/>" type parstr)
+	(if (or (string= type "span") (string= type "i"))
+		(format nil "<~A~A>~A</~A>" type parstr (html content) type)
+	(format nil "<~A~A>~%~A~%</~A>~%" type parstr (html content) type))))))
 
 (defmethod html ((l list))
 	(if l (concatenate 'string (html (car l)) (html (cdr l)))
@@ -58,7 +61,7 @@
 		"margin-top:5em" "margin-bottom: 4em" "font-size: 14pt"))
 	("h1" ("text-align: center" "margin-bottom: 2em" "font-size: 2em"))
 	("p" ("line-height: 1.4" "text-indent: 1em" "margin-top: 0px"))
-	("#footer" ("font-size: 0.9em" "color: #00a040" "text-align:center"
+	("#footer" ("font-size: 0.9em" "color: #008040" "text-align:center"
 		"margin-bottom: 2em"))
 	("a" ("color: inherit" "font-size: inherit"))
 	("code" ("word-break: break-any"
@@ -67,6 +70,8 @@
 		"background-color: #004000" "margin-top: 2em" "font-weight:100"
 		"margin-bottom: -0.5em"))
 	("pre" ("margin-bottom: 0px" "padding: 0px"))
+	(".inline-code" ("font-family: monospace" "font-size:0.9em"
+		"font-weight: 600"))
 ))
 
 (defun addStyle (key vals)
