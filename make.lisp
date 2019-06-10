@@ -4,7 +4,8 @@
 (if (eql argv nil) (progn (format nil "Missing parameter") (sb-ext:quit)))
 
 (defun outf (name)
-	(concatenate 'string name ".html"))
+	(let ((extpos (position #\. name :from-end t)))
+	(concatenate 'string (subseq name 0 extpos) ".html")))
 
 (defun get-title (content)
 	(if content
