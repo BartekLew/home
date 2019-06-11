@@ -23,6 +23,7 @@
 (defclass chunk ()
 	((content :initarg := :initform '())))
 (defclass code-chunk (chunk) ())
+(defclass embedded-chunk (chunk) ())
 
 (defgeneric chunk-limiter (chunk))
 (defmethod chunk-limiter ((chunk chunk))
@@ -32,12 +33,23 @@
 	(lambda (line) (string= line "```")))
 
 (defmethod initialize-instance :after ((this chunk) &key loader)
+	(if loader
 	(with-slots (content) this
 	(let ((rest (loop for x = (apply loader '())
 			until (apply (orf #'not (chunk-limiter this)) `(,x))
 			collect x)))
 	(setf content (if content (cons content rest)
-				rest)))))
+				rest))))))
+
+(defmethod initialize-instance :after ((this embedded-chunk) &key)
+	(with-slots (content) this
+	(setf content
+	(if (and (> (length content) 8) (string= (subseq content 2 9) "AUDIO: "))
+		(!+ 'tag := "audio" :&- "controls" :<
+			(!+ 'tag := "source" :& `("src" ,(subseq content 9) "type" "audio/mpeg")))))))
+		
+(defun embedded? (line)
+	(and (> (length line) 2) (string= (subseq line 0 2) "!!")))
 
 (defun modtag (mod content)
 	(cond	((eql mod #\`) (!+ 'tag := "span" :& '("class" "inline-code") :< content))
@@ -59,13 +71,21 @@
 (defun merge-lines (lines)
 	(~format (join (sep #\Newline) lines)))
 
+(defvar *has-h1?* nil) 		;; should be shadowed on >tag call
+(defun top-header ()
+	(if *has-h1?* "h2"
+		(progn (setf *has-h1?* t) "h1")))
+
 (defgeneric >tag (src))
 (defmethod >tag ((c chunk))
 	(with-slots (content) c
 	(if (first content)
 	(if (headr? (car (last content)))
-		(!+ 'tag := "h1" :< (merge-lines (subseq content 0 (- (length content) 1))))
+		(!+ 'tag := (top-header) :< (merge-lines (subseq content 0 (- (length content) 1))))
 		(!+ 'tag := "p" :< (merge-lines content))))))
+
+(defmethod >tag ((c embedded-chunk))
+	(slot-value c 'content))
 
 (defmethod >tag ((chunk code-chunk))
 	(with-slots (content) chunk
@@ -75,12 +95,14 @@
 	(flet ((rdl () (rd i)))
 	(let*	((l (1st (orf #'not #'nonblank-line?) #'rdl)))
 	(if (string= l "```") (!+ 'code-chunk :loader #'rdl)
-		(!+ 'chunk := l :loader #'rdl)))))
+	(if (embedded? l) (!+ 'embedded-chunk := l)
+		(!+ 'chunk := l :loader #'rdl))))))
 
 (defun chunks (lines)
+	(let ((*has-h1?* nil)) 		;; shadow top-header marker
 	(loop for x = (>tag (chunk lines))
 		until (eql x nil)
-		collect x))
+		collect x)))
 
 ;; document class
 (defclass document ()

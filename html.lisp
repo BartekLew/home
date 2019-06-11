@@ -28,6 +28,7 @@
 (defclass tag ()
 	((type :initarg := :initform "span" :reader tagtype)
 	(par :initarg :& :initform '())
+	(boolpar :initarg :&- :initform "")
 	(content :initarg :< :initform nil :reader content)))
 
 (defmethod initialize-instance :after ((this tag) &key)
@@ -43,13 +44,13 @@
 	text)
 
 (defmethod html ((this tag))
-(with-slots (type par content) this
+(with-slots (type par boolpar content) this
 	(let ((parstr (params>str par)))
 	(if (eql content '())
-		(format nil "<~A~A/>" type parstr)
+		(format nil "<~A~A ~A/>" type parstr boolpar)
 	(if (or (string= type "span") (string= type "i"))
-		(format nil "<~A~A>~A</~A>" type parstr (html content) type)
-	(format nil "<~A~A>~%~A~%</~A>~%" type parstr (html content) type))))))
+		(format nil "<~A~A ~A>~A</~A>" type parstr boolpar (html content) type)
+	(format nil "<~A~A ~A>~%~A~%</~A>~%" type parstr boolpar (html content) type))))))
 
 (defmethod html ((l list))
 	(if l (concatenate 'string (html (car l)) (html (cdr l)))
@@ -60,6 +61,7 @@
 	("#art" ("max-width: 75ex" "margin-left: auto" "margin-right: auto"
 		"margin-top:5em" "margin-bottom: 4em" "font-size: 14pt"))
 	("h1" ("text-align: center" "margin-bottom: 2em" "font-size: 2em"))
+	("h2" ("margin-top: 2em" "font-size: 1.5em" "font-weight: 700"))
 	("p" ("line-height: 1.4" "text-indent: 1em" "margin-top: 0px"))
 	("#footer" ("font-size: 0.9em" "color: #008040" "text-align:center"
 		"margin-bottom: 2em"))
@@ -72,6 +74,7 @@
 	("pre" ("margin-bottom: 0px" "padding: 0px"))
 	(".inline-code" ("font-family: monospace" "font-size:0.9em"
 		"font-weight: 600"))
+	("audio" ("width:50%" "margin-left: 25%" "margin-top: 1em" "margin-bottom: 2em" ))
 ))
 
 (defun addStyle (key vals)
