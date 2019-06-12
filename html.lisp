@@ -69,7 +69,7 @@
 	("code" ("word-break: break-any"
 		"font-family: monospace" "color: #f0e0f0" "font-size: 0.8em"
 		"padding: 2em" "padding-top: 1em" "display: block"
-		"background-color: #004000" "margin-top: 2em" "font-weight:100"
+		"background-color: #101010" "margin-top: 2em" "font-weight:100"
 		"margin-bottom: -0.5em"))
 	("pre" ("margin-bottom: 0px" "padding: 0px"))
 	(".inline-code" ("font-family: monospace" "font-size:0.9em"

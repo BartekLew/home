@@ -91,3 +91,5 @@
 	`(lambda (&rest args) ,(cons 'or (loop for x in funs
 					collect `(apply ,x args)))))
 
+(defmacro s+ (&rest strings) `(concatenate 'string ,@strings))
+

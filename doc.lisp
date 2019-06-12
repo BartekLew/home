@@ -55,18 +55,30 @@
 	(cond	((eql mod #\`) (!+ 'tag := "span" :& '("class" "inline-code") :< content))
 		((eql mod #\%) (!+ 'tag := "i" :< content))))
 
+(defun apply-esc (string pos)
+	(cons (subseq string 0 pos) (~format (subseq string (+ pos 2)))))
+
+(defun apply-<> (string pos)
+	(let* ((mod (char string pos))
+		(subst (if (eql mod #\<) "&lt;" "&gt;")))
+	`(,(subseq string 0 pos) ,subst (subseq string (+1 pos)))))
+
+(defun apply-mod (string pos)
+	(let* ((mod (char string pos))
+		(endpos (pos-not-escaped mod string (+ pos 1))))
+	`(,(subseq string 0 pos)
+		,(modtag mod (subseq string (+ pos 1) endpos))
+		,(~format (subseq string (+ endpos 1))))))
+
 (defun ~format (string)
 	(if (string= string "") '()
-	(let ((modpos (position-if (lambda (c) (find c '(#\` #\%))) string)))
-	(if modpos
-	(if (and (> modpos 0) (eql #\\ (char string (- modpos 1))))
-		(list (subseq string 0 (- modpos 1)) (subseq string modpos))
-	(let*	((mod (char string modpos))
-		(endpos (position mod string :start (+ modpos 1))))
-	(append (list (subseq string 0 modpos)
-		(modtag mod (subseq string (+ modpos 1) endpos))
-		(~format (subseq string (+ endpos 1)))))))
-	`(,string)))))
+	(let ((modpos (pos-not-escaped+ '(#\\ #\` #\% #\< #\>) string)))
+	(if (not modpos) string
+
+	(let ((mod (char string modpos)))
+	(cond ((eql mod #\\) (apply-esc string modpos))
+		((find mod '(#\> #\<)) (apply-<> string modpos))
+		(t (apply-mod string modpos))))))))
 	
 (defun merge-lines (lines)
 	(~format (join (sep #\Newline) lines)))
@@ -87,9 +99,16 @@
 (defmethod >tag ((c embedded-chunk))
 	(slot-value c 'content))
 
+(defun esc-<> (string)
+	(let ((pos (pos-not-escaped+ '(#\> #\<) string)))
+	(if (not pos) string
+	(s+ (subseq string 0 pos)
+		(if (eql (char string pos) #\>) "&gt;" "&lt;")
+		(esc-<> (subseq string (+ 1 pos)))))))
+
 (defmethod >tag ((chunk code-chunk))
 	(with-slots (content) chunk
-	(!+ 'tag := "pre" :< (!+ 'tag := "code" :< (join (sep #\Newline) content)))))
+	(!+ 'tag := "pre" :< (!+ 'tag := "code" :< (esc-<> (join (sep #\Newline) content))))))
 
 (defun chunk (i)
 	(flet ((rdl () (rd i)))
