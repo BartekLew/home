@@ -1,127 +1,238 @@
 (load "html.lisp")
 (load "util.lisp")
 
-	
-(defclass lines ()
-	((remaining :initarg :<  :initform '())))
-
-(defmethod print-object ((o lines) stream)
-	(with-slots (remaining) o
-	(format stream "<LINES (~A...)>" (car remaining))))
-
-(defgeneric rd (input))
-(defmethod rd ((i lines))
-	(with-slots (remaining) i
-	(if remaining (let ((l (first remaining)))
-			(setf remaining (cdr remaining))
-			l)
-		nil)))
-
-(defun headr? (line)
-	(not (position-if-not (lambda (c) (eql c #\=)) line)))
 
 (defclass chunk ()
-	((content :initarg := :initform '())))
-(defclass code-chunk (chunk) ())
-(defclass embedded-chunk (chunk) ())
+	((value :initarg := :initform nil :accessor value)
+	(tail :initform nil :accessor tail)))
 
-(defgeneric chunk-limiter (chunk))
-(defmethod chunk-limiter ((chunk chunk))
-	#'blank-line?)
+(defun taillen (chunk)
+	(if (not chunk) 0
+		(+ 1 (taillen (tail chunk)))))
 
-(defmethod chunk-limiter ((chunk code-chunk))
-	(lambda (line) (string= line "```")))
+(defun chunktail (&rest chunks)
+	(if (car chunks) (let ((head (car chunks)))
+		(setf (tail head) (apply #'chunktail (cdr chunks)))
+		head)))
 
-(defmethod initialize-instance :after ((this chunk) &key loader)
-	(if loader
-	(with-slots (content) this
-	(let ((rest (loop for x = (apply loader '())
-			until (apply (orf #'not (chunk-limiter this)) `(,x))
-			collect x)))
-	(setf content (if content (cons content rest)
-				rest))))))
+(defmethod print-object ((this chunk) out)
+	(format out "<~A '~A'/~A>" (type-of this) (s/- (value this) 20)
+		(if (listp (tail this)) (length (tail this)) (taillen (tail this)))))
 
-(defmethod initialize-instance :after ((this embedded-chunk) &key)
-	(with-slots (content) this
-	(setf content
-	(if (and (> (length content) 8) (string= (subseq content 2 9) "AUDIO: "))
-		(!+ 'tag := "audio" :&- "controls" :<
-			(!+ 'tag := "source" :& `("src" ,(subseq content 9) "type" "audio/mpeg")))))))
-		
-(defun embedded? (line)
-	(and (> (length line) 2) (string= (subseq line 0 2) "!!")))
+(defclass paragraph (chunk) ())
+(defclass blank (chunk) ())
 
-(defun modtag (mod content)
-	(cond	((eql mod #\`) (!+ 'tag := "span" :& '("class" "inline-code") :< content))
-		((eql mod #\%) (!+ 'tag := "i" :< content))))
+(defmacro line-type (name &body pred)
+	`(progn (defclass ,name (chunk) ())
+	(defun ,name (input)
+		(if ,@pred (!+ ',name := input)))))
 
-(defun apply-esc (string pos)
-	(cons (subseq string 0 pos) (~format (subseq string (+ pos 2)))))
 
-(defun apply-<> (string pos)
-	(let* ((mod (char string pos))
-		(subst (if (eql mod #\<) "&lt;" "&gt;")))
-	`(,(subseq string 0 pos) ,subst (subseq string (+1 pos)))))
+(line-type blank (not (position-if-not #'white? input)))
+(line-type header-line (not (pos-not #\= input)))
+(line-type keyval-line (string= (s/- input 2) "!!"))
+(line-type blockcode-line (string= "```" input))
 
-(defun apply-mod (string pos)
-	(let* ((mod (char string pos))
-		(endpos (pos-not-escaped mod string (+ pos 1))))
-	`(,(subseq string 0 pos)
-		,(modtag mod (subseq string (+ pos 1) endpos))
-		,(~format (subseq string (+ endpos 1))))))
 
-(defun ~format (string)
-	(if (string= string "") '()
-	(let ((modpos (pos-not-escaped+ '(#\\ #\` #\% #\< #\>) string)))
-	(if (not modpos) string
+(defmethod initialize-instance :after ((this keyval-line) &key)
+	(with-slots (value) this
+	(let* ((colon (pos-not-escaped #\: value))
+		(valpos (position-if-not #'white? value :start (+ colon 1))))
+	(setf value `(,(subseq value 2 colon) ,(subseq value valpos))))))
 
-	(let ((mod (char string modpos)))
-	(cond ((eql mod #\\) (apply-esc string modpos))
-		((find mod '(#\> #\<)) (apply-<> string modpos))
-		(t (apply-mod string modpos))))))))
+
+(defun >line (input)
+	(match input (list 'blank 'header-line 'keyval-line 'blockcode-line
+			(lambda (x) (make-instance 'paragraph := x)))))
 	
-(defun merge-lines (lines)
-	(~format (join (sep #\Newline) lines)))
 
-(defvar *has-h1?* nil) 		;; should be shadowed on >tag call
-(defun top-header ()
-	(if *has-h1?* "h2"
-		(progn (setf *has-h1?* t) "h1")))
+(defclass header(chunk) ())
+(defclass code-block(chunk) ((closed :initform nil :accessor closed)))
 
-(defgeneric >tag (src))
-(defmethod >tag ((c chunk))
-	(with-slots (content) c
-	(if (first content)
-	(if (headr? (car (last content)))
-		(!+ 'tag := (top-header) :< (merge-lines (subseq content 0 (- (length content) 1))))
-		(!+ 'tag := "p" :< (merge-lines content))))))
+(defgeneric chunk+ (a b))
 
-(defmethod >tag ((c embedded-chunk))
-	(slot-value c 'content))
+(defmethod chunk+ (a (b (eql nil))) a)
+(defmethod chunk+ ((a (eql nil)) b) b)
+(defmethod chunk+ ((a chunk) (b chunk)) nil)
 
-(defun esc-<> (string)
-	(let ((pos (pos-not-escaped+ '(#\> #\<) string)))
-	(if (not pos) string
-	(s+ (subseq string 0 pos)
-		(if (eql (char string pos) #\>) "&gt;" "&lt;")
-		(esc-<> (subseq string (+ 1 pos)))))))
+(defmethod chunk+ ((a chunk) (b list))
+	(if (not b) a
+	(let ((con (chunk+ a (car b))))
+	(if con (chunk+ con (cdr b))
+		(progn (setf (tail a) b) a)))))
 
-(defmethod >tag ((chunk code-chunk))
-	(with-slots (content) chunk
-	(!+ 'tag := "pre" :< (!+ 'tag := "code" :< (esc-<> (join (sep #\Newline) content))))))
+(defmethod chunk+ ((a paragraph) (b paragraph))
+	(setf (value a) (format nil "~A~%~A" (value a) (value b)))
+	a)
 
-(defun chunk (i)
-	(flet ((rdl () (rd i)))
-	(let*	((l (1st (orf #'not #'nonblank-line?) #'rdl)))
-	(if (string= l "```") (!+ 'code-chunk :loader #'rdl)
-	(if (embedded? l) (!+ 'embedded-chunk := l)
-		(!+ 'chunk := l :loader #'rdl))))))
+(defmethod chunk+ ((a blank) (b blank)) a)
+
+(defmethod chunk+ ((a paragraph) (b header-line))
+	(!+ 'header := (value a)))
+
+(defmethod chunk+ ((a paragraph) (b blank)) nil)
+
+(defmethod chunk+ ((a blockcode-line) (b paragraph))
+	(!+ 'code-block := (value b)))
+
+(defmethod chunk+ ((a code-block) (b paragraph))
+	(if (not (closed a))
+		(!+ 'code-block := (format nil "~A~%~A" (value a) (value b)))))
+
+(defmethod chunk+ ((a code-block) (b blockcode-line))
+	(setf (closed a) T) a)
+
+(defmethod chunk+ ((a code-block) (b blank))
+	(if (not (closed a))
+		(progn (setf (value a) (format nil "~A~%" (value a))) a)))
+
+(defgeneric chunk (lines &optional acc))
+
+(defmethod chunk ((lines list) &optional acc)
+	(if (not lines) acc
+	(chunk+ (chunk+ acc (car lines)) (cdr lines) )))
 
 (defun chunks (lines)
-	(let ((*has-h1?* nil)) 		;; shadow top-header marker
-	(loop for x = (>tag (chunk lines))
-		until (eql x nil)
-		collect x)))
+	(if lines
+	(let ((head (chunk lines)))
+	(if (tail head) (setf (tail head) (chunks (tail head))))
+	head)))
+
+(defgeneric chunk= (c1 c2))
+
+(defmethod chunk= ((c1 chunk) (c2 chunk))
+	(and (eql (type-of c1) (type-of c2))
+		(equal (value c1) (value c2))))
+
+(defmethod chunk= ((l1 list) (l2 list))
+	(let ((result T))
+	(loop for a in l1
+		for b in l2
+		collect (unless (chunk= a b) (setf result nil)))
+	result))
+
+(defgeneric chunks= (cs1 cs2))
+
+(defmethod chunks= (a b)
+	(and (not a) (not b)))
+
+(defmethod chunks= ((cs1 chunk) (cs2 chunk))
+	(and (chunk= cs1 cs2) (chunks= (tail cs1) (tail cs2))))
+
+
+(defclass string-iterator ()
+	((text :initarg :< :accessor text)
+	(pos :initform -1 :accessor pos)))
+
+(defmethod value ((i string-iterator))
+	(text i))
+
+(defmethod print-object ((si string-iterator) out)
+	(format out "<~A @~A '~A'>" (type-of si) (pos si) (s/- (format nil "~A" (value si)) 20)))
+
+(defgeneric next (iter))
+(defmethod next ((i string-iterator))
+	(with-slots (text pos) i
+	(setf pos (+ 1 pos))
+	(if (>= pos (length text)) nil
+		(char text pos))))
+
+(defclass spechar ()
+	((chr :initarg := :reader chr)
+	(action :initarg :! :reader action)))
+
+(defmethod print-object ((sc spechar) out)
+	(format out "<~A:'~A'>" (type-of sc) (chr sc)))
+
+(defmacro replace-fun (new-val)
+	`(lambda (iterator)
+		(with-slots (text pos) iterator
+		(setf text (s+ (subseq text 0 pos)
+				,new-val
+				(subseq text (+ pos 1))))
+		(setf pos (+ pos (length ,new-val)))
+		iterator)))
+
+(defvar *default-spechars* `(
+	,(!+ 'spechar := #\< :! (replace-fun "&lt;"))
+	,(!+ 'spechar := #\> :! (replace-fun "&gt;"))))
+
+(defclass split-string-iterator (string-iterator)
+	((split-part :initarg :<+ :initform '() :reader split-part)))
+
+(defmethod value ((i split-string-iterator))
+	(with-slots (text split-part) i
+	(append split-part (list text))))
+
+(defgeneric split-text (iterator pos))
+(defmethod split-text ((i string-iterator) pos)
+	(with-slots (text) i
+	(!+ 'split-string-iterator :<+ (list (subseq text 0 pos))
+			:< (subseq text (+ pos 1)))))
+
+(defmethod split-text ((i split-string-iterator) pos)
+	(with-slots (split-part text) i
+	(let ((x (call-next-method)))
+	(!+ 'split-string-iterator :<+ (append split-part (split-part x))
+		:< (slot-value x 'text)))))
+
+(defgeneric push-back (collection element))
+(defmethod push-back ((i split-string-iterator) val)
+	(with-slots (split-part) i
+	(setf split-part (append split-part (list val)))
+	i));
+
+(defgeneric discard-text (text-container startpos endpos))
+(defmethod discard-text ((i string-iterator) (startpos (eql 0)) endpos)
+	(with-slots (text) i
+	(setf text (subseq text endpos)) i))
+
+(defmacro region-tag-fun (lim make-tag)
+	`(lambda (iterator)
+		(with-slots (text pos) iterator
+		(let* ((endpos (position ,lim text :start (+ 1 pos))))
+		(discard-text (push-back (split-text iterator pos)
+					(,make-tag (subseq text (+ 1 pos) endpos)))
+				0 (- endpos pos))))))
+
+(defvar *paragraph-spechars* (append *default-spechars* `(
+	,(!+ 'spechar := #\\ :! (lambda (iter)
+		(with-slots (pos) iter
+		(setf pos (+ pos 1)) iter)))
+	,(!+ 'spechar := #\` :! (region-tag-fun #\`
+		(lambda (content)
+			(!+ 'tag := "span" :& '("class" "inline-code") :< content))))
+	,(!+ 'spechar := #\% :! (region-tag-fun #\%
+		(lambda (content)
+			(!+ 'tag := "i" :< content)))))))
+
+(defgeneric ~format (input &optional spechars))
+
+(defmethod ~format ((input string) &optional (spechars *default-spechars*))
+	(~format (!+ 'string-iterator :< input) spechars))
+
+(defmethod ~format ((input string-iterator) &optional (spechars *default-spechars*))
+	(let ((n (next input)))
+	(if n (let ((spechar (find n spechars
+				:test (lambda (chr spechar)
+					(eql chr (chr spechar))))))
+		(if spechar (~format (apply (action spechar) `(,input)) spechars)
+			(~format input spechars)))
+		(value input))))
+
+(defgeneric >tags (chunk))
+(defmethod >tags ((c chunk))
+	(if (tail c) (>tags (tail c))))
+
+(defmethod >tags ((p paragraph))
+	(cons (!+ 'tag := "p" :< (~format (value p) *paragraph-spechars*)) (call-next-method)))
+
+(defmethod >tags ((h header))
+	(cons (!+ 'tag := "h1" :< (~format (value h) *paragraph-spechars*)) (call-next-method)))
+
+(defmethod >tags ((c code-block))
+	(cons (!+ 'tag := "pre" :< (!+ 'tag := "code" :< (~format (value c)))) (call-next-method)))
+
 
 ;; document class
 (defclass document ()
@@ -137,7 +248,7 @@
 			(if (eql (first lines) :error) 
 				(progn (setf (slot-value this 'title) "file not found!")
 				'("p" '("style" "color: #b03030") "File not found!"))
-			(chunks (!+ 'lines :< lines)))))
+			(>tags (chunks (mapcar #'>line lines))))))
 	(if by-val (setf (slot-value this 'content) by-val))))
 
 (defmethod html ((d document))

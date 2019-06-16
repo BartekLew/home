@@ -39,6 +39,24 @@
 	(with-slots (type par content) this
 	(format out "<TAG \"~A\" ~A: ~A>" type (params>str par) content)))
 
+(defgeneric tag= (a b))
+
+(defmethod tag= ((a (eql nil)) (b (eql nil))) T)
+
+(defmethod tag= ((a string) (b string))
+	(equal a b))
+
+(defmethod tag= ((a tag) (b tag))
+	(and (string= (tagtype a) (tagtype b))
+		(string= (slot-value a 'par) (slot-value b 'par))
+		(string= (slot-value b 'boolpar) (slot-value b 'boolpar))
+		(tag= (content a) (content b))))
+
+(defmethod tag= ((a list) (b list))
+	(not (find nil (loop for x in a
+		for y in b
+		collect (and x y)))))
+		
 (defgeneric html (src))
 (defmethod html ((text string))
 	text)

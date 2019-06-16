@@ -12,6 +12,8 @@
 	((eql (char input pos) #\\) (pos-not-escaped+ chars input (+ pos 2)))
 	(t (pos-not-escaped+ chars input (+ pos 1)))))
 
+(defmacro pos-not (char input &rest rest)
+	`(position-if-not (lambda (c) (eql c ,char)) ,input ,@rest))
 
 (defun chars-count (chars input &optional (pos 0))
 	(if (>= pos (length input)) 0
@@ -26,6 +28,9 @@
 
 (defmacro !+ (class &body body)
 	`(make-instance ,class ,@body))
+
+(defmacro !++ (&rest params)
+	`(apply 'make-instance ',params))
 
 ;; join elements of list using joiner class.
 (defun join (joiner list)
@@ -92,4 +97,12 @@
 					collect `(apply ,x args)))))
 
 (defmacro s+ (&rest strings) `(concatenate 'string ,@strings))
+
+(defmacro s+ln (&rest strings)
+	(join (sep #\Newline) strings))
+
+(defmacro s/- (string length)
+	`(if (< ,length (length ,string))
+		(subseq ,string 0 ,length)
+		,string))
 
