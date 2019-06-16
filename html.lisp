@@ -93,6 +93,9 @@
 	(".inline-code" ("font-family: monospace" "font-size:0.9em"
 		"font-weight: 600"))
 	("audio" ("width:50%" "margin-left: 25%" "margin-top: 1em" "margin-bottom: 2em" ))
+	("#toc" ("margin-bottom: 3em"))
+	("h3" ("margin-bottom: 0.5em"))
+	("ol" ("margin-top: 0px"))
 ))
 
 (defun addStyle (key vals)

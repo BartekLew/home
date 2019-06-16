@@ -48,6 +48,17 @@
 	
 
 (defclass header(chunk) ())
+
+(defgeneric page-bookmark (element))
+(defmethod page-bookmark ((h header))
+	(string-downcase (~format (value h)
+		`(,(!+ 'spechar := #'white? :! (replace-fun "_"))))))
+
+(defgeneric link (element))
+(defmethod link ((this header))
+	(!+ 'tag := "a" :& (list "href" (s+ "#" (page-bookmark this)))
+		:< (value this)))
+
 (defclass code-block(chunk) ((closed :initform nil :accessor closed)))
 
 (defgeneric chunk+ (a b))
@@ -139,7 +150,8 @@
 	(cons (!+ 'tag := "p" :< (~format (value p) *paragraph-spechars*)) (call-next-method)))
 
 (defmethod >tags ((h header))
-	(cons (!+ 'tag := "h2" :< (~format (value h) *paragraph-spechars*)) (call-next-method)))
+	(cons (!+ 'tag := "h2" :& `("id" ,(page-bookmark h))
+		:< (~format (value h) *paragraph-spechars*)) (call-next-method)))
 
 (defmethod >tags ((c code-block))
 	(cons (!+ 'tag := "pre" :< (!+ 'tag := "code" :< (~format (value c)))) (call-next-method)))
@@ -163,13 +175,28 @@
 
 (defgeneric with-content (doc chunk))
 
+(defun chunk-iterator (chunk)
+	(let ((cur chunk))
+	(lambda () (if cur (let ((x cur))
+				(setf cur (tail cur))
+				x)))))
+(defgeneric toc? (chunks))
+(defmethod toc? ((ch chunk))
+	(let* ((iter (chunk-iterator ch))
+		(chunks (loop for x = (apply iter nil) until (not x) collect x)))
+	(if (remove-if-not (lambda (x) (equal (value x) '("OPTION" "TOC"))) chunks)
+		(!+ 'tag := "div" :& '("id" "toc")
+			:< (list (!+ 'tag := "h3" :< "spis treści:") (!+ 'tag := "ol"
+				:< (mapcar (lambda (x) (!+ 'tag := "li" :< (link x)))
+					(remove-if-not (lambda (x) (eql (type-of x) 'header)) chunks))))))))
+		
 (defmethod with-content ((this document) (chunks header))
 	(setf (slot-value this 'title) (value chunks))
 	(with-content this (tail chunks)))
 
 (defmethod with-content ((this document) (chunks chunk))
 	(with-slots (content) this
-	(setf content (>tags chunks))))
+	(setf content (cons (toc? chunks) (>tags chunks)))))
 	
 (defmethod initialize-instance :after((this document) &key from-file by-val)
 	(if from-file (setf (slot-value this 'content)

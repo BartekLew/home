@@ -19,6 +19,12 @@
 	((chr :initarg := :reader chr)
 	(action :initarg :! :reader action)))
 
+(defgeneric =~ (target pattern))
+(defmethod =~ (char (sc spechar))
+	(with-slots (chr) sc
+	(if (functionp chr) (apply chr (list char))
+		(eql char chr))))
+
 (defmethod print-object ((sc spechar) out)
 	(format out "<~A:'~A'>" (type-of sc) (chr sc)))
 
@@ -80,9 +86,7 @@
 
 (defmethod ~format ((input string-iterator) &optional (spechars *default-spechars*))
 	(let ((n (next input)))
-	(if n (let ((spechar (find n spechars
-				:test (lambda (chr spechar)
-					(eql chr (chr spechar))))))
+	(if n (let ((spechar (find n spechars :test #'=~)))
 		(if spechar (~format (apply (action spechar) `(,input)) spechars)
 			(~format input spechars)))
 		(value input))))
