@@ -1,0 +1,192 @@
+<html >
+<head >
+<title >
+README
+</title>
+<meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1.0" /><style type="text/css" >
+body {
+	background-color: #d0f0d0;
+	color: #000080
+}
+
+#art {
+	max-width: 75ex;
+	margin-left: auto;
+	margin-right: auto;
+	margin-top:5em;
+	margin-bottom: 4em;
+	font-size: 14pt
+}
+
+h1 {
+	text-align: center;
+	margin-bottom: 2em;
+	font-size: 2em
+}
+
+h2 {
+	margin-top: 2em;
+	font-size: 1.5em;
+	font-weight: 700
+}
+
+p {
+	line-height: 1.4;
+	text-indent: 1em;
+	margin-top: 0px
+}
+
+#footer {
+	font-size: 0.9em;
+	color: #008040;
+	text-align:center;
+	margin-bottom: 2em
+}
+
+a {
+	color: inherit;
+	font-size: inherit
+}
+
+code {
+	word-break: break-any;
+	font-family: monospace;
+	color: #f0e0f0;
+	font-size: 0.8em;
+	padding: 2em;
+	padding-top: 1em;
+	display: block;
+	background-color: #101010;
+	margin-top: 2em;
+	font-weight:100;
+	margin-bottom: -0.5em
+}
+
+pre {
+	margin-bottom: 0px;
+	padding: 0px
+}
+
+.inline-code {
+	font-family: monospace;
+	font-size:0.9em;
+	font-weight: 600
+}
+
+audio {
+	width:50%;
+	margin-left: 25%;
+	margin-top: 1em;
+	margin-bottom: 2em
+}
+
+#toc {
+	margin-bottom: 3em
+}
+
+h3 {
+	margin-bottom: 0.5em
+}
+
+ol {
+	margin-top: 0px
+}
+
+</style>
+
+</head>
+<body >
+<div id="art" >
+<h1 >
+README
+</h1>
+<div id="toc" >
+<h3 >
+in this document:
+</h3>
+<ol >
+<li >
+<a href="#usage" >
+Usage
+</a>
+
+</li>
+<li >
+<a href="#input_format" >
+Input format
+</a>
+
+</li>
+<li >
+<a href="#source_files" >
+Source files
+</a>
+
+</li>
+
+</ol>
+
+</div>
+<p >
+This is my homepage generator and Common Lisp exploration.
+It uses some SBCL-specific features. To run it
+</p>
+<h2 id="usage" >
+Usage
+</h2>
+<pre >
+<code >
+sbcl --script make.lisp &lt;source-files&gt;
+</code>
+
+</pre>
+<p >
+In additional parameters pass all text files to process.
+</p>
+<h2 id="input_format" >
+Input format
+</h2>
+<p >
+Program accept MD-like syntax, but mostly on surface. Way to
+separate paragraphs, code and headers are the same. Currently
+there is only one way to mark header and if header is on the
+beginning of a document it's page title rather than section
+header.
+</p>
+<p >
+You can use <span class="inline-code" >%</span> to make <i >italics</i>, there are special forms
+to make table of contents and embed audio:
+</p>
+<pre >
+<code >
+!!TOC: TOC title
+
+!!AUDIO: foo.mp3
+</code>
+
+</pre>
+<h2 id="source_files" >
+Source files
+</h2>
+<p >
+<span class="inline-code" >README</span> — source of this readme.
+</p>
+<p >
+<span class="inline-code" >html.lisp</span> — html document builder
+</p>
+<p >
+<span class="inline-code" >doc.lisp</span> — document parser
+</p>
+<p >
+<span class="inline-code" >string.lisp</span>, <span class="inline-code" >util.lisp</span> — various general purpose stuff
+</p>
+
+</div>
+<div id="footer" >
+<span style="display:inline-block; transform:rotate(180deg)" >&copy;</span>Lew, 2019<br/><a href="http://creativecommons.org/licenses/by-sa/4.0/"><img alt="Creative Commons Licence" style="border-width:0" src="https://i.creativecommons.org/l/by-sa/4.0/80x15.png" /></a>
+</div>
+
+</body>
+
+</html>
+

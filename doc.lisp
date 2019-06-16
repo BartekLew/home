@@ -7,6 +7,8 @@
 	((value :initarg := :initform nil :accessor value)
 	(tail :initform nil :accessor tail)))
 
+(defmethod value ((x (eql nil))) nil)
+
 (defun taillen (chunk)
 	(if (not chunk) 0
 		(+ 1 (taillen (tail chunk)))))
@@ -94,6 +96,15 @@
 (defmethod chunk+ ((a code-block) (b blockcode-line))
 	(setf (closed a) T) a)
 
+(defmethod chunk+ ((a blockcode-line) (b keyval-line))
+	(let ((kv (value b)))
+	(!+ 'code-block := (format nil "!!~A: ~A" (first kv) (second kv)))))
+
+(defmethod chunk+ ((a code-block) (b keyval-line))
+	(if (not (closed a))
+		(let ((kv (value b)))
+		(!+ 'code-block := (format nil "~A~%!!~A: ~A" (value a) (first kv) (second kv))))))
+
 (defmethod chunk+ ((a code-block) (b blank))
 	(if (not (closed a))
 		(progn (setf (value a) (format nil "~A~%" (value a))) a)))
@@ -133,8 +144,9 @@
 
 (defvar *paragraph-spechars* (append *default-spechars* `(
 	,(!+ 'spechar := #\\ :! (lambda (iter)
-		(with-slots (pos) iter
-		(setf pos (+ pos 1)) iter)))
+		(with-slots (text pos) iter
+		(setf text (s+ (subseq text 0 pos) (subseq text (+ 1 pos))))
+		iter)))
 	,(!+ 'spechar := #\` :! (region-tag-fun #\`
 		(lambda (content)
 			(!+ 'tag := "span" :& '("class" "inline-code") :< content))))
@@ -183,10 +195,11 @@
 (defgeneric toc? (chunks))
 (defmethod toc? ((ch chunk))
 	(let* ((iter (chunk-iterator ch))
-		(chunks (loop for x = (apply iter nil) until (not x) collect x)))
-	(if (remove-if-not (lambda (x) (equal (value x) '("OPTION" "TOC"))) chunks)
+		(chunks (loop for x = (apply iter nil) until (not x) collect x))
+		(toc-title (second (value (car (remove-if-not (lambda (x) (and (listp (value x)) (string= (first (value x)) "TOC"))) chunks))))))
+	(if toc-title
 		(!+ 'tag := "div" :& '("id" "toc")
-			:< (list (!+ 'tag := "h3" :< "spis treści:") (!+ 'tag := "ol"
+			:< (list (!+ 'tag := "h3" :< toc-title) (!+ 'tag := "ol"
 				:< (mapcar (lambda (x) (!+ 'tag := "li" :< (link x)))
 					(remove-if-not (lambda (x) (eql (type-of x) 'header)) chunks))))))))
 		

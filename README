@@ -1,0 +1,45 @@
+README
+======
+
+!!TOC: in this document:
+
+This is my homepage generator and Common Lisp exploration.
+It uses some SBCL-specific features. To run it
+
+Usage
+=====
+
+```
+sbcl --script make.lisp <source-files>
+```
+
+In additional parameters pass all text files to process.
+
+Input format
+=============
+
+Program accept MD-like syntax, but mostly on surface. Way to
+separate paragraphs, code and headers are the same. Currently
+there is only one way to mark header and if header is on the
+beginning of a document it's page title rather than section
+header.
+
+You can use `%` to make %italics%, there are special forms
+to make table of contents and embed audio:
+
+```
+!!TOC: TOC title
+
+!!AUDIO: foo.mp3
+```
+
+Source files
+=============
+
+`README` — source of this readme.
+
+`html.lisp` — html document builder
+
+`doc.lisp` — document parser
+
+`string.lisp`, `util.lisp` — various general purpose stuff
