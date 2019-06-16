@@ -228,7 +228,7 @@
 	(cons (!+ 'tag := "p" :< (~format (value p) *paragraph-spechars*)) (call-next-method)))
 
 (defmethod >tags ((h header))
-	(cons (!+ 'tag := "h1" :< (~format (value h) *paragraph-spechars*)) (call-next-method)))
+	(cons (!+ 'tag := "h2" :< (~format (value h) *paragraph-spechars*)) (call-next-method)))
 
 (defmethod >tags ((c code-block))
 	(cons (!+ 'tag := "pre" :< (!+ 'tag := "code" :< (~format (value c)))) (call-next-method)))
@@ -242,13 +242,23 @@
 	(footer :initarg :footer :initform '())
 	(init :initarg :init :initform '())))
 
+(defgeneric with-content (doc chunk))
+
+(defmethod with-content ((this document) (chunks header))
+	(setf (slot-value this 'title) (value chunks))
+	(with-content this (tail chunks)))
+
+(defmethod with-content ((this document) (chunks chunk))
+	(with-slots (content) this
+	(setf content (>tags chunks))))
+	
 (defmethod initialize-instance :after((this document) &key from-file by-val)
 	(if from-file (setf (slot-value this 'content)
 		(let ((lines (<f from-file)))
 			(if (eql (first lines) :error) 
 				(progn (setf (slot-value this 'title) "file not found!")
 				'("p" '("style" "color: #b03030") "File not found!"))
-			(>tags (chunks (mapcar #'>line lines))))))
+			(with-content this (chunks (mapcar #'>line lines))))))
 	(if by-val (setf (slot-value this 'content) by-val))))
 
 (defmethod html ((d document))
@@ -262,6 +272,7 @@
 			(if init (!+ 'tag := "script" :& '("type" "text/javascript") :< (js (as-function "init" init))))
 		))
 		(!+ 'tag := "body" :& (if init '("onload" "init()") nil)
-			:< (list (!+ 'tag := "div" :& '("id" "art") :< content)
+			:< (list (!+ 'tag := "div" :& '("id" "art") 
+					:< (cons (!+ 'tag := "h1" :< title) content))
 				(!+ 'tag := "div" :& '("id" "footer") :< footer))))))))
 
