@@ -66,7 +66,7 @@
 	(let ((parstr (params>str par)))
 	(if (eql content '())
 		(format nil "<~A~A ~A/>" type parstr boolpar)
-	(if (or (string= type "span") (string= type "i"))
+	(if (or (string= type "span") (string= type "i") (string= type "a"))
 		(format nil "<~A~A ~A>~A</~A>" type parstr boolpar (html content) type)
 	(format nil "<~A~A ~A>~%~A~%</~A>~%" type parstr boolpar (html content) type))))))
 
@@ -96,6 +96,10 @@
 	("#toc" ("margin-bottom: 3em"))
 	("h3" ("margin-bottom: 0.5em"))
 	("ol" ("margin-top: 0px"))
+	("#arts-list" ("margin-top: 3em"))
+	(".art-date" ("font-size: 0.8em" "font-style: italic"))
+	(".docs-item" ("margin-left: 1em" "margin-right: 1em" "margin-bottom:0.5em" "text-align: center"))
+	("img" ("max-width:80%" "margin: 1em 10%"))
 ))
 
 (defun addStyle (key vals)

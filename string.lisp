@@ -74,7 +74,9 @@
 (defmacro region-tag-fun (lim make-tag)
 	`(lambda (iterator)
 		(with-slots (text pos) iterator
-		(let* ((endpos (position ,lim text :start (+ 1 pos))))
+		(let* ((endpos ,(if (characterp lim)
+				`(position ,lim text :start (+ 1 pos))
+				`(position-if ,lim text :start (+ 1 pos)))))
 		(discard-text (push-back (split-text iterator pos)
 					(,make-tag (subseq text (+ 1 pos) endpos)))
 				0 (- endpos pos))))))

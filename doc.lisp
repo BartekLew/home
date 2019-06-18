@@ -7,6 +7,12 @@
 	((value :initarg := :initform nil :accessor value)
 	(tail :initform nil :accessor tail)))
 
+(defun chunk-iterator (chunk)
+	(let ((cur chunk))
+	(lambda () (if cur (let ((x cur))
+				(setf cur (tail cur))
+				x)))))
+
 (defmethod value ((x (eql nil))) nil)
 
 (defun taillen (chunk)
@@ -36,7 +42,6 @@
 (line-type keyval-line (string= (s/- input 2) "!!"))
 (line-type blockcode-line (string= "```" input))
 
-
 (defmethod initialize-instance :after ((this keyval-line) &key)
 	(with-slots (value) this
 	(let* ((colon (pos-not-escaped #\: value))
@@ -48,7 +53,6 @@
 	(match input (list 'blank 'header-line 'keyval-line 'blockcode-line
 			(lambda (x) (make-instance 'paragraph := x)))))
 	
-
 (defclass header(chunk) ())
 
 (defgeneric page-bookmark (element))
@@ -142,17 +146,43 @@
 (defmethod chunks= ((cs1 chunk) (cs2 chunk))
 	(and (chunk= cs1 cs2) (chunks= (tail cs1) (tail cs2))))
 
-(defvar *paragraph-spechars* (append *default-spechars* `(
+(defvar *paragraph-spechars* nil)
+(setf *paragraph-spechars* (append *default-spechars* `(
 	,(!+ 'spechar := #\\ :! (lambda (iter)
 		(with-slots (text pos) iter
 		(setf text (s+ (subseq text 0 pos) (subseq text (+ 1 pos))))
 		iter)))
+	,(!+ 'spechar := #\$ :! (region-tag-fun #'white?
+		(lambda (content)
+			(!+ 'tag := "a" :& `("href" ,content) :< content))))
+	,(!+ 'spechar := #\~ :! (replace-fun "&nbsp;"))
 	,(!+ 'spechar := #\` :! (region-tag-fun #\`
 		(lambda (content)
-			(!+ 'tag := "span" :& '("class" "inline-code") :< content))))
+			(!+ 'tag := "span" :& '("class" "inline-code") :< (~format content *paragraph-spechars*)))))
 	,(!+ 'spechar := #\% :! (region-tag-fun #\%
 		(lambda (content)
-			(!+ 'tag := "i" :< content)))))))
+			(!+ 'tag := "i" :< (~format content *paragraph-spechars*))))))))
+
+(defun get-keys (doc)
+	(let ((keys (make-hash-table :test #'equal))
+		(iter (chunk-iterator doc)))
+	(loop (let ((v (apply iter nil)))
+		(if (not v) (return))
+		(if (typep v 'keyval-line)
+			(setf (gethash (first (value v)) keys) (second (value v))))))
+	keys))
+
+(defun doc-link (file)
+	(let* ((doc (chunks (mapcar #'>line (<f file))))
+		(title (value doc))
+		(keys (get-keys doc)))
+	(!+ 'tag := "div" :& '("class" "docs-item") :< (list
+		(!+ 'tag := "a" :& `("href" ,(linkf file)) :< title)
+		(!+ 'tag := "span" :& '("class" "art-date")
+			:< (format nil " (~A)" (gethash "DATE" keys)))))))
+
+(defun index-tag (files)
+	(!+ 'tag := "div" :& '("id" "arts-list") :< (mapcar #'doc-link files)))
 
 (defgeneric >tags (chunk))
 (defmethod >tags ((c chunk))
@@ -169,13 +199,15 @@
 	(cons (!+ 'tag := "pre" :< (!+ 'tag := "code" :< (~format (value c)))) (call-next-method)))
 
 (defmethod >tags ((k keyval-line))
-	(if (string= (first (value k)) "AUDIO")
-		(cons (!+ 'tag := "audio" :&- "controls"
+	(cons (if (string= (first (value k)) "AUDIO")
+		(!+ 'tag := "audio" :&- "controls"
 			:< (!+ 'tag := "source" :& `("src" ,(second (value k))
 						"type" "audio/mpeg"))) 
-			(call-next-method))
+	(if (string= (first (value k)) "INDEX")
+		(index-tag (files (second (value k))))
+	(if (string= (first (value k)) "IMAGE")
+		(!+ 'tag := "img" :& `("src" ,(second (value k)))))))
 		(call-next-method)))
-
 
 ;; document class
 (defclass document ()
@@ -187,11 +219,6 @@
 
 (defgeneric with-content (doc chunk))
 
-(defun chunk-iterator (chunk)
-	(let ((cur chunk))
-	(lambda () (if cur (let ((x cur))
-				(setf cur (tail cur))
-				x)))))
 (defgeneric toc? (chunks))
 (defmethod toc? ((ch chunk))
 	(let* ((iter (chunk-iterator ch))
@@ -232,6 +259,6 @@
 		))
 		(!+ 'tag := "body" :& (if init '("onload" "init()") nil)
 			:< (list (!+ 'tag := "div" :& '("id" "art") 
-					:< (cons (!+ 'tag := "h1" :< title) content))
+					:< (cons (!+ 'tag := "h1" :< (~format title *paragraph-spechars*)) content))
 				(!+ 'tag := "div" :& '("id" "footer") :< footer))))))))
 

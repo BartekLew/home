@@ -1,3 +1,4 @@
+(defvar *pwd* ".")
 
 (defun pos-not-escaped (char input &optional (pos 0))
 (cond	((>= pos (length input)) nil)
@@ -106,3 +107,19 @@
 		(subseq ,string 0 ,length)
 		,string))
 
+(defun outf (name)
+	(let ((extpos (position #\. name :from-end t)))
+	(concatenate 'string (subseq name 0 extpos) ".html")))
+
+(defun linkf (name)
+	(subseq (outf name) 3))
+
+(defun filedir (name)
+	(let ((pos (position #\/ name :from-end t)))
+	(subseq name 0 pos)))
+
+(defun files (glob)
+	(let* ((p (sb-ext:run-program "/bin/sh" (list "-c" (s+ "ls " *pwd* "/" glob)) :output :stream))
+		(out (sb-ext:process-output p)))
+	(loop for x = (read-line out nil :eof) until (eql x :eof) collect x)))
+	
