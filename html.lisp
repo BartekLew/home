@@ -101,6 +101,7 @@
 	(".docs-item" ("margin-left: 1em" "margin-right: 1em" "margin-bottom:0.5em" "text-align: center"))
 	("img" ("max-width:80%" "margin: 1em 10%"))
 	(".poem-block" ("text-align: center" "text-style: italic"))
+	("#header" ("text-align: center"))
 ))
 
 (defun addStyle (key vals)

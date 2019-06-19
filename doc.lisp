@@ -266,10 +266,12 @@
 ;; document class
 (defclass document ()
 	(content
+	(header :initarg :header :initform '())
 	(title :initarg :title :initform "Peace!")
 	(style :initarg :style :initform '())
 	(footer :initarg :footer :initform '())
-	(init :initarg :init :initform '())))
+	(init :initarg :init :initform '())
+	(refs :initform '() :reader refs)))
 
 (defgeneric with-content (doc chunk))
 
@@ -289,7 +291,9 @@
 	(with-content this (tail chunks)))
 
 (defmethod with-content ((this document) (chunks chunk))
-	(with-slots (content) this
+	(with-slots (content refs) this
+	(setf refs (let ((idx (gethash "INDEX" (get-keys chunks))))
+		(if idx (files idx))))
 	(setf content (cons (toc? chunks) (>tags chunks)))))
 	
 (defmethod initialize-instance :after((this document) &key from-file by-val)
@@ -302,7 +306,7 @@
 	(if by-val (setf (slot-value this 'content) by-val))))
 
 (defmethod html ((d document))
-	(with-slots (content title style init footer) d
+	(with-slots (content title style init footer header) d
 	(html (!+ 'tag := "html" :< (list
 		(!+ 'tag := "head" :< (list
 			(!+ 'tag := "title" :< (~format title *title-spechars*))
@@ -312,7 +316,8 @@
 			(if init (!+ 'tag := "script" :& '("type" "text/javascript") :< (js (as-function "init" init))))
 		))
 		(!+ 'tag := "body" :& (if init '("onload" "init()") nil)
-			:< (list (!+ 'tag := "div" :& '("id" "art") 
+			:< (list (if header (!+ 'tag := "div" :& '("id" "header") :< header))
+				 (!+ 'tag := "div" :& '("id" "art") 
 					:< (cons (!+ 'tag := "h1" :< (~format title *paragraph-spechars*)) content))
 				(!+ 'tag := "div" :& '("id" "footer") :< footer))))))))
 

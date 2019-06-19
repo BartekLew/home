@@ -9,12 +9,22 @@
 	(if (string= (tagtype next) "h1") (content next)
 		(get-title (cdr content))))))
 
-(doList (f argv)
-(let ((*pwd* (filedir f)))
-	(>f (outf f) (html (!+ 'document :from-file f
+(defun head-for (file)
+	(!+ 'tag := "a" :& `("href" ,file) :< "więcej artykułów"))
+
+(defun build-doc (f &optional (header nil))
+	(let ((doc (!+ 'document :from-file f
+			:header header
 			:footer `(,(copyleft) "Lew, 2019"
 				"<br/><a href=\"http://creativecommons.org/licenses/by-sa/4.0/\">"
 				"<img alt=\"Creative Commons Licence\" style=\"border-width:0\""
-				" src=\"https://i.creativecommons.org/l/by-sa/4.0/80x15.png\" /></a>")))))))
+				" src=\"https://i.creativecommons.org/l/by-sa/4.0/80x15.png\" /></a>"))))
+	(format t "build ~A~%" f)
+	(>f (outf f) (html doc))
+	(if (refs doc) (doList (ref (refs doc)) (build-doc ref (head-for (outf f)))))))
+
+(doList (f argv)
+(let ((*pwd* (filedir f)))
+	(build-doc f))))
 
 (sb-ext:quit)

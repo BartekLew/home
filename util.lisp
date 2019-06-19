@@ -122,4 +122,3 @@
 	(let* ((p (sb-ext:run-program "/bin/sh" (list "-c" (s+ "ls " *pwd* "/" glob)) :output :stream))
 		(out (sb-ext:process-output p)))
 	(loop for x = (read-line out nil :eof) until (eql x :eof) collect x)))
-	
