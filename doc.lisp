@@ -196,17 +196,45 @@
 			(setf (gethash (first (value v)) keys) (second (value v))))))
 	keys))
 
-(defun doc-link (file)
-	(let* ((doc (chunks (mapcar #'>line (<f file))))
-		(title (value doc))
-		(keys (get-keys doc)))
+(defclass source-file ()
+	((name :initarg := :reader name)
+	(content :reader content)
+	(keys :reader keys)))
+
+(defmethod initialize-instance :after ((this source-file) &key)
+	(with-slots (name content keys) this
+	(setf content (chunks (mapcar #'>line (<f name))))
+	(setf keys (get-keys content))))
+
+(defgeneric title (doc))
+(defmethod title ((this source-file))
+	(value (content this)))
+
+(defgeneric param (doc key))
+(defmethod param ((this source-file) (key string))
+	(gethash key (keys this)))
+
+(defgeneric date> (a b))
+(defmethod date> ((a source-file) (b source-file))
+	(let* ((date-a (~format (param a "DATE") (split-spechar #\.)))
+		(date-b (~format (param b "DATE") (split-spechar #\.)))
+		(reltab (loop for ia in date-a
+				for ib in date-b
+				collect (- (read-from-string ia) (read-from-string ib)))))
+	(or (> (third reltab) 0)
+		(and (= (third reltab) 0)
+			(or (> (second reltab) 0)
+			(and (= (second reltab) 0) (> (first reltab) 0)))))))
+	
+(defun doc-link (doc)
 	(!+ 'tag := "div" :& '("class" "docs-item") :< (list
-		(!+ 'tag := "a" :& `("href" ,(linkf file)) :< (~format title *paragraph-spechars*))
+		(!+ 'tag := "a" :& `("href" ,(linkf (name doc))) :< (~format (title doc) *paragraph-spechars*))
 		(!+ 'tag := "span" :& '("class" "art-date")
-			:< (format nil " (~A)" (gethash "DATE" keys)))))))
+			:< (format nil " (~A)" (param doc "DATE"))))))
 
 (defun index-tag (files)
-	(!+ 'tag := "div" :& '("id" "arts-list") :< (mapcar #'doc-link files)))
+	(!+ 'tag := "div" :& '("id" "arts-list") 
+		:< (mapcar #'doc-link (sort (mapcar (lambda (x) (!+ 'source-file := x)) files) #'date>))))
 
 (defgeneric >tags (chunk))
 (defmethod >tags ((c chunk))

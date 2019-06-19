@@ -1,3 +1,5 @@
+(load "util.lisp")
+
 (defclass string-iterator ()
 	((text :initarg :< :accessor text)
 	(pos :initform -1 :accessor pos)))
@@ -80,6 +82,11 @@
 		(discard-text (push-back (split-text iterator pos)
 					(,make-tag (subseq text (+ 1 pos) endpos)))
 				0 (- endpos pos))))))
+
+(defun split-spechar (delimiter)
+	(list (!+ 'spechar := delimiter :! (lambda (iterator)
+		(with-slots (text pos) iterator
+		(split-text iterator pos))))))
 
 (defgeneric ~format (input &optional spechars))
 
