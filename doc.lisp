@@ -40,7 +40,14 @@
 (line-type blank (not (position-if-not #'white? input)))
 (line-type header-line (not (pos-not #\= input)))
 (line-type keyval-line (string= (s/- input 2) "!!"))
-(line-type blockcode-line (string= "```" input))
+(line-type block-line (or (string= "```" input) (string= "\"\"\"" input)))
+
+(defclass blockquote-line (block-line)())
+(defclass blockcode-line (block-line)())
+
+(defmethod make-instance ((class (eql (find-class 'block-line))) &key =)
+	(if (string= = "```") (make-instance 'blockcode-line := =) 
+		(make-instance 'blockquote-line := =)))
 
 (defmethod initialize-instance :after ((this keyval-line) &key)
 	(with-slots (value) this
@@ -50,7 +57,7 @@
 
 
 (defun >line (input)
-	(match input (list 'blank 'header-line 'keyval-line 'blockcode-line
+	(match input (list 'blank 'header-line 'keyval-line 'block-line
 			(lambda (x) (make-instance 'paragraph := x)))))
 	
 (defclass header(chunk) ())
@@ -65,7 +72,9 @@
 	(!+ 'tag := "a" :& (list "href" (s+ "#" (page-bookmark this)))
 		:< (value this)))
 
-(defclass code-block(chunk) ((closed :initform nil :accessor closed)))
+(defclass code-block(chunk)
+	((closed :initform nil :accessor closed)
+	(block-type :initarg :block-type :reader block-type)))
 
 (defgeneric chunk+ (a b))
 
@@ -91,23 +100,26 @@
 (defmethod chunk+ ((a paragraph) (b blank)) nil)
 
 (defmethod chunk+ ((a blockcode-line) (b paragraph))
-	(!+ 'code-block := (value b)))
+	(!+ 'code-block := (value b) :block-type :code))
+
+(defmethod chunk+ ((a blockquote-line) (b paragraph))
+	(!+ 'code-block := (value b) :block-type :quote))
 
 (defmethod chunk+ ((a code-block) (b paragraph))
 	(if (not (closed a))
-		(!+ 'code-block := (format nil "~A~%~A" (value a) (value b)))))
+		(!+ 'code-block := (format nil "~A~%~A" (value a) (value b)) :block-type (block-type a))))
 
-(defmethod chunk+ ((a code-block) (b blockcode-line))
+(defmethod chunk+ ((a code-block) (b block-line))
 	(setf (closed a) T) a)
 
-(defmethod chunk+ ((a blockcode-line) (b keyval-line))
+(defmethod chunk+ ((a block-line) (b keyval-line))
 	(let ((kv (value b)))
-	(!+ 'code-block := (format nil "!!~A: ~A" (first kv) (second kv)))))
+	(!+ 'code-block := (format nil "!!~A: ~A" (first kv) (second kv)) :block-type (block-type a))))
 
 (defmethod chunk+ ((a code-block) (b keyval-line))
 	(if (not (closed a))
 		(let ((kv (value b)))
-		(!+ 'code-block := (format nil "~A~%!!~A: ~A" (value a) (first kv) (second kv))))))
+		(!+ 'code-block := (format nil "~A~%!!~A: ~A" (value a) (first kv) (second kv)) :block-type (block-type a)))))
 
 (defmethod chunk+ ((a code-block) (b blank))
 	(if (not (closed a))
@@ -154,7 +166,7 @@
 		iter)))
 	,(!+ 'spechar := #\$ :! (region-tag-fun #'white?
 		(lambda (content)
-			(!+ 'tag := "a" :& `("href" ,content) :< content))))
+			(!+ 'tag := "a" :& `("href" ,content) :< (~format content *paragraph-spechars*)))))
 	,(!+ 'spechar := #\~ :! (replace-fun "&nbsp;"))
 	,(!+ 'spechar := #\` :! (region-tag-fun #\`
 		(lambda (content)
@@ -163,7 +175,19 @@
 		(lambda (content)
 			(!+ 'tag := "i" :< (~format content *paragraph-spechars*))))))))
 
-(defun get-keys (doc)
+(defvar *poem-spechars* (append *paragraph-spechars*
+	`(,(!+ 'spechar := #\Newline :! (lambda (iterator)
+		(with-slots (pos text) iterator
+		(push-back (split-text iterator pos)(!+ 'tag := "br"))))))))
+
+(defvar *title-spechars* (append *default-spechars* `(
+	,(!+ 'spechar := #\\ :! (replace-fun ""))
+	,(!+ 'spechar := #\% :! (replace-fun ""))
+	,(!+ 'spechar := #\$ :! (replace-fun ""))
+	,(!+ 'spechar := #\~ :! (replace-fun " "))
+	,(!+ 'spechar := #\` :! (replace-fun "")))))
+
+ (defun get-keys (doc)
 	(let ((keys (make-hash-table :test #'equal))
 		(iter (chunk-iterator doc)))
 	(loop (let ((v (apply iter nil)))
@@ -177,7 +201,7 @@
 		(title (value doc))
 		(keys (get-keys doc)))
 	(!+ 'tag := "div" :& '("class" "docs-item") :< (list
-		(!+ 'tag := "a" :& `("href" ,(linkf file)) :< title)
+		(!+ 'tag := "a" :& `("href" ,(linkf file)) :< (~format title *paragraph-spechars*))
 		(!+ 'tag := "span" :& '("class" "art-date")
 			:< (format nil " (~A)" (gethash "DATE" keys)))))))
 
@@ -196,7 +220,9 @@
 		:< (~format (value h) *paragraph-spechars*)) (call-next-method)))
 
 (defmethod >tags ((c code-block))
-	(cons (!+ 'tag := "pre" :< (!+ 'tag := "code" :< (~format (value c)))) (call-next-method)))
+	(cons (if (eql (block-type c) :code)
+		(!+ 'tag := "pre" :< (!+ 'tag := "code" :< (~format (value c))))
+		(!+ 'tag := "div" :& '("class" "poem-block") :< (~format (value c) *poem-spechars*))) (call-next-method)))
 
 (defmethod >tags ((k keyval-line))
 	(cons (if (string= (first (value k)) "AUDIO")
@@ -251,7 +277,7 @@
 	(with-slots (content title style init footer) d
 	(html (!+ 'tag := "html" :< (list
 		(!+ 'tag := "head" :< (list
-			(!+ 'tag := "title" :< title)
+			(!+ 'tag := "title" :< (~format title *title-spechars*))
 			(!+ 'tag := "meta" :& '("charset" "utf-8"))
 			(!+ 'tag := "meta" :& '("name" "viewport" "content" "width=device-width, initial-scale=1.0"))
 			(!+ 'tag := "style" :& '("type" "text/css") :< (stylesheet (append *base-style* style)))
