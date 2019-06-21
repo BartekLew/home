@@ -169,7 +169,10 @@
 		iter)))
 	,(!+ 'spechar := #\$ :! (region-tag-fun #'white?
 		(lambda (content)
-			(!+ 'tag := "a" :& `("href" ,content) :< (~format content *paragraph-spechars*)))))
+			(let* ((colon (pos-not-escaped #\= content))
+				(link (if colon (subseq content (+ colon 1)) content))
+				(title (if colon (~format (subseq content 0 colon) *paragraph-spechars*) content)))
+			(!+ 'tag := "a" :& `("href" ,link) :< title)))))
 	,(!+ 'spechar := #\~ :! (replace-fun "&nbsp;"))
 	,(!+ 'spechar := #\` :! (region-tag-fun #\`
 		(lambda (content)

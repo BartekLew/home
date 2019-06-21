@@ -9,6 +9,11 @@
 	((eql (char input pos) #\\) (pos-not-escaped char input (+ pos 2)))
 	(t (pos-not-escaped char input (+ pos 1)))))
 
+(defun pos-not-escaped-if (pred input &optional (pos 0))
+(cond	((>= pos (length input)) nil)
+	((apply pred (list (char input pos))) pos)
+	((eql (char input pos) #\\) (pos-not-escaped-if pred input (+ pos 2)))
+	(t (pos-not-escaped-if pred input (+ pos 1)))))
 
 (defun pos-not-escaped+ (chars input &optional (pos 0))
 (cond	((>= pos (length input)) nil)

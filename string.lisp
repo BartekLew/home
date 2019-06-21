@@ -77,8 +77,8 @@
 	`(lambda (iterator)
 		(with-slots (text pos) iterator
 		(let* ((endpos ,(if (characterp lim)
-				`(position ,lim text :start (+ 1 pos))
-				`(position-if ,lim text :start (+ 1 pos)))))
+				`(pos-not-escaped ,lim text (+ 1 pos))
+				`(pos-not-escaped-if ,lim text (+ 1 pos)))))
 		(discard-text (push-back (split-text iterator pos)
 					(,make-tag (subseq text (+ 1 pos) endpos)))
 				0 (- endpos pos))))))
