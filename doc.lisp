@@ -108,9 +108,15 @@
 (defmethod chunk+ ((a blockquote-line) (b paragraph))
 	(!+ 'code-block := (value b) :block-type :quote))
 
+(defun line-len (text len)
+	(if (> (length text) len)
+		(format nil "~A~%~A" (subseq text 0 len) 
+				(line-len (subseq text len) len))
+		text))
+
 (defmethod chunk+ ((a code-block) (b paragraph))
 	(if (not (closed a))
-		(!+ 'code-block := (format nil "~A~%~A" (value a) (value b)) :block-type (block-type a))))
+		(!+ 'code-block := (format nil "~A~%~A" (value a) (line-len (value b) 76)) :block-type (block-type a))))
 
 (defmethod chunk+ ((a code-block) (b block-line))
 	(setf (closed a) T) a)
