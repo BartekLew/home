@@ -39,6 +39,7 @@
 
 (line-type blank (not (position-if-not #'white? input)))
 (line-type header-line (not (pos-not #\= input)))
+(line-type subheader-line (not (pos-not #\- input)))
 (line-type keyval-line (string= (s/- input 2) "!!"))
 (line-type block-line (or (string= "```" input) (string= "\"\"\"" input)))
 
@@ -57,10 +58,10 @@
 
 
 (defun >line (input)
-	(match input (list 'blank 'header-line 'keyval-line 'block-line
+	(match input (list 'blank 'header-line 'subheader-line 'keyval-line 'block-line
 			(lambda (x) (make-instance 'paragraph := x)))))
 	
-(defclass header(chunk) ())
+(defclass header(chunk) ((level :initarg :level :reader level)))
 
 (defgeneric page-bookmark (element))
 (defmethod page-bookmark ((h header))
@@ -98,7 +99,10 @@
 (defmethod chunk+ ((a blank) (b blank)) a)
 
 (defmethod chunk+ ((a paragraph) (b header-line))
-	(!+ 'header := (value a)))
+	(!+ 'header := (value a) :level 2))
+
+(defmethod chunk+ ((a paragraph) (b subheader-line))
+	(!+ 'header := (value a) :level 3))
 
 (defmethod chunk+ ((a paragraph) (b blank)) nil)
 
@@ -256,7 +260,7 @@
 	(cons (!+ 'tag := "p" :< (~format (value p) *paragraph-spechars*)) (call-next-method)))
 
 (defmethod >tags ((h header))
-	(cons (!+ 'tag := "h2" :& `("id" ,(page-bookmark h))
+	(cons (!+ 'tag := (format nil "h~a" (level h)) :& `("id" ,(page-bookmark h))
 		:< (~format (value h) *paragraph-spechars*)) (call-next-method)))
 
 (defmethod >tags ((c code-block))
@@ -287,16 +291,33 @@
 
 (defgeneric with-content (doc chunk))
 
+(defclass toc ()
+	((title :reader title) (tree :reader tree)))
+
+(defmethod initialize-instance ((this toc) &key <)
+	(with-slots (title tree) this
+	(setf title nil)
+	(labels ((read-chunk (chunk &optional (current nil))
+		(cond ((not chunk) (list current))
+			((and (typep chunk 'keyval-line) (string= (first (value chunk)) "TOC"))
+				(setf title (second (value chunk)))
+				(read-chunk (tail chunk) current))
+			((and (typep chunk 'header) (= (level chunk) 2))
+				(cons current (read-chunk (tail chunk) (list chunk))))
+			((and (typep chunk 'header) (= (level chunk) 3))
+				(read-chunk (tail chunk) (append current (list chunk))))
+			(t (read-chunk (tail chunk) current)))))
+		(setf tree (cdr (read-chunk <))))))
+
 (defgeneric toc? (chunks))
 (defmethod toc? ((ch chunk))
-	(let* ((iter (chunk-iterator ch))
-		(chunks (loop for x = (apply iter nil) until (not x) collect x))
-		(toc-title (second (value (car (remove-if-not (lambda (x) (and (listp (value x)) (string= (first (value x)) "TOC"))) chunks))))))
-	(if toc-title
-		(!+ 'tag := "div" :& '("id" "toc")
-			:< (list (!+ 'tag := "h3" :< toc-title) (!+ 'tag := "ol"
-				:< (mapcar (lambda (x) (!+ 'tag := "li" :< (link x)))
-					(remove-if-not (lambda (x) (eql (type-of x) 'header)) chunks))))))))
+	(let ((toc (!+ 'toc :< ch)))
+	(if (title toc) (!+ 'tag := "div" :& '("id" "toc")
+		:< (list (!+ 'tag := "h3" :< (title toc)) (!+ 'tag := "ol"
+			:< (mapcar (lambda (x) (!+ 'tag := "li" 
+				:< (if (= (length x) 1) (link (car x))
+					(list (link (car x)) (!+ 'tag := "ul" :< (mapcar (lambda (x)
+						(!+ 'tag := "li" :< (link x)))(cdr x))))))) (tree toc))))))))
 		
 (defmethod with-content ((this document) (chunks header))
 	(setf (slot-value this 'title) (value chunks))
