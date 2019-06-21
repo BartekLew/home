@@ -1,5 +1,5 @@
-(load "util.lisp")
-(load "js.lisp")
+(load (merge-pathnames "util.lisp" *load-truename*))
+(include "js.lisp")
 
 ;; Create css-rule string
 (defun css-rule (selector rules)

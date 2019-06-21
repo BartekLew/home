@@ -1,4 +1,4 @@
-(load "util.lisp")
+(load (merge-pathnames "util.lisp" *load-truename*))
 
 (defclass js ()
 	((recipee :initarg := :reader js)))

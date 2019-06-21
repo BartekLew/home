@@ -1,4 +1,5 @@
-(load "doc.lisp")
+(load (merge-pathnames "util.lisp" *load-truename*))
+(include "doc.lisp")
 
 (let ((argv (cdr sb-ext:*posix-argv*)))
 (if (eql argv nil) (progn (format nil "Missing parameter") (sb-ext:quit)))

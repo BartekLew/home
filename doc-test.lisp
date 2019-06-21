@@ -1,4 +1,5 @@
-(load "doc.lisp")
+(load (merge-pathnames "util.lisp" *load-truename*))
+(include "doc.lisp")
 
 (defmacro line-case (input out-type &optional (expected input))
 	`(let ((out (>line ,input)))

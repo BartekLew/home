@@ -1,4 +1,4 @@
-(load "util.lisp")
+(load (merge-pathnames "util.lisp" *load-truename*))
 
 (defclass string-iterator ()
 	((text :initarg :< :accessor text)

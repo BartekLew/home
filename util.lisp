@@ -1,5 +1,8 @@
 (defvar *pwd* ".")
 
+(defmacro include (file)
+	`(load (merge-pathnames ,file *load-truename*)))
+
 (defun pos-not-escaped (char input &optional (pos 0))
 (cond	((>= pos (length input)) nil)
 	((eql (char input pos) char) pos)
@@ -112,13 +115,14 @@
 	(concatenate 'string (subseq name 0 extpos) ".html")))
 
 (defun linkf (name)
-	(subseq (outf name) 3))
+	(subseq (outf name) (length *pwd*)))
 
 (defun filedir (name)
 	(let ((pos (position #\/ name :from-end t)))
-	(subseq name 0 pos)))
+	(if (not pos) "./"
+	(subseq name 0 (+ pos 1)))))
 
 (defun files (glob)
-	(let* ((p (sb-ext:run-program "/bin/sh" (list "-c" (s+ "ls " *pwd* "/" glob)) :output :stream))
+	(let* ((p (sb-ext:run-program "/bin/sh" (list "-c" (s+ "ls " *pwd* glob)) :output :stream))
 		(out (sb-ext:process-output p)))
 	(loop for x = (read-line out nil :eof) until (eql x :eof) collect x)))

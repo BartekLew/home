@@ -24,7 +24,7 @@ there is only one way to mark header and if header is on the
 beginning of a document it's page title rather than section
 header.
 
-You can use `%` to make %italics%, there are special forms
+You can use `\%` to make %italics%, there are special forms
 to make table of contents and embed audio:
 
 ```

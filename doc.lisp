@@ -1,6 +1,6 @@
-(load "html.lisp")
-(load "util.lisp")
-(load "string.lisp")
+(load (merge-pathnames "util.lisp" *load-truename*))
+(include "html.lisp")
+(include "string.lisp")
 
 
 (defclass chunk ()
@@ -75,6 +75,9 @@
 (defclass code-block(chunk)
 	((closed :initform nil :accessor closed)
 	(block-type :initarg :block-type :reader block-type)))
+
+(defmethod block-type ((x blockquote-line)) :quote)
+(defmethod block-type ((x blockcode-line)) :code)
 
 (defgeneric chunk+ (a b))
 
