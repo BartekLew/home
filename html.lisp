@@ -102,6 +102,7 @@
 	("img" ("max-width:80%" "margin: 1em 10%"))
 	(".poem-block" ("text-align: center" "text-style: italic"))
 	("#header" ("text-align: center"))
+	("ul" ("list-style-type: none" "padding: 0.4em" "margin: 0em"))
 ))
 
 (defun addStyle (key vals)
