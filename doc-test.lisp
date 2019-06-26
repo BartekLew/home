@@ -80,12 +80,6 @@
 				(!+ 'tag := "p" :< "u")))))
 	(tags-case (first test) (second test)))
 
-(defmacro test-case ((input test-fun expected-output) &body body)
-	`(let ((output (apply (lambda (input) ,@body) '(,input))))
-	(unless (apply #',test-fun (list ,expected-output output))
-		(format t "TEST FAILED: ~A -> ~A != ~A~%	action: ~a~%"
-			',input ,expected-output output ',body))))
-
 (test-case ("foo baria" string= "foo baria")
 	(value (!+ 'string-iterator :< input)))
 

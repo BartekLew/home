@@ -25,7 +25,7 @@
 		head)))
 
 (defmethod print-object ((this chunk) out)
-	(format out "<~A '~A'/~A>" (type-of this) (s/- (value this) 20)
+	(format out "<~A '~A'/~A>" (type-of this) (value this)
 		(if (listp (tail this)) (length (tail this)) (taillen (tail this)))))
 
 (defclass paragraph (chunk) ())
@@ -40,7 +40,7 @@
 (line-type blank (not (position-if-not #'white? input)))
 (line-type header-line (not (pos-not #\= input)))
 (line-type subheader-line (not (pos-not #\- input)))
-(line-type keyval-line (string= (s/- input 2) "!!"))
+(line-type keyval-line (string= (cuts input 2) "!!"))
 (line-type block-line (or (string= "```" input) (string= "\"\"\"" input)))
 
 (defclass blockquote-line (block-line)())

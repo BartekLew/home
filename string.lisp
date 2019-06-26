@@ -2,20 +2,23 @@
 
 (defclass string-iterator ()
 	((text :initarg :< :accessor text)
-	(pos :initform -1 :accessor pos)))
+	(pos :initform 0 :accessor pos)))
 
 (defmethod value ((i string-iterator))
 	(text i))
 
 (defmethod print-object ((si string-iterator) out)
-	(format out "<~A @~A '~A'>" (type-of si) (pos si) (s/- (format nil "~A" (value si)) 20)))
+	(format out "<~A @~A '~A'>" (type-of si) (pos si) (cuts (format nil "~A" (value si)) 20)))
 
 (defgeneric next (iter))
 (defmethod next ((i string-iterator))
 	(with-slots (text pos) i
-	(setf pos (+ 1 pos))
-	(if (>= pos (length text)) nil
-		(char text pos))))
+	(if (>= (+ pos 1) (length text))
+		nil
+
+		(let ((result (char text pos)))
+		(setf pos (+ 1 pos))
+		result))))
 
 (defclass spechar ()
 	((chr :initarg := :reader chr)
@@ -99,3 +102,113 @@
 		(if spechar (~format (apply (action spechar) `(,input)) spechars)
 			(~format input spechars)))
 		(value input))))
+
+(defclass regex ()
+	((exp :initarg := :initform nil)
+	(conditions :initarg :& :initform nil)))
+
+(defmacro rgx (exp &optional cond)
+	`(make-instance 'regex := ,exp :& ,cond))
+
+(+constructor regex (=)
+	(cond ((not =) (warn "regex constructor without exression, return nil") nil)
+		(t (call-next-method))))
+
+(+simple-printer regex 'exp)
+
+(defgeneric ~+ (to &rest what))
+(defmethod ~+ ((this regex) &rest symbols)
+	(with-slots (exp) this
+	(let ((symbol-i (list-iterator symbols)))
+	(apply #'format (append (list 'nil (times-str "~A" (length  exp)))
+			(loop for x in exp
+				collect (if (typep x 'symbol) (apply symbol-i nil) x)))))))
+
+(defgeneric  ~= (regex value &key))
+(defmethod ~= ((pattern string) (value string) &key (pos 0))
+	(let ((endpos (+ pos (length pattern))))
+	(if (<= endpos (length value))
+		(if (string= (subseq value pos endpos) pattern) (list pos endpos)
+			(~= pattern value :pos (+ pos 1))))))
+
+(defmethod ~= (pattern (value string) &key (pos 0))
+	(if (>= (length value) pos)
+	(if (functionp pattern)
+		(let ((endpos (apply* pattern (list value pos))))
+		(if endpos (list pos endpos)
+			(~= pattern value :pos (+ pos 1)))))))
+
+
+(defmethod ~= ((this regex) (value string) &key (pos 0))
+	(with-slots (exp conditions) this
+	(let ((expi (list-iterator exp)) (keys nil) (lastkey nil) x (startpos pos))
+	(tagbody
+	load (setf x (apply expi nil))
+	test (if (not x) (go quit))
+		(if (typep x 'symbol)
+			(let ((next (apply expi nil)))
+			(cond ((not next)
+					(let ((newkey (subseq value pos)))
+					(or (not (hash[] x conditions))
+						(apply* (hash[] x conditions) (list newkey 0))
+						(go quit))
+					(setf keys (append keys (list newkey))))
+					(setf x nil)
+					(go quit))
+				(t (setf lastkey x) (setf x next) (go test))))
+		;; not symbol
+			(let ((range (~= x value :pos pos)))
+			(if (or (not range) (and (not lastkey) (/= (first range) pos))) (go quit))
+			(if lastkey
+				(let ((newkey (subseq value pos (first range))))
+				(or (not (hash[] lastkey conditions))
+					(apply* (hash[] lastkey conditions) (list newkey 0))
+					(go quit))
+						 (setf keys (append keys (list newkey)))))
+			(setf lastkey nil)
+			(setf pos (second range))
+			(go load)))
+	quit)
+	(if x
+		(if (< startpos (length value))
+			(~= this value :pos (+ startpos 1)))
+		(or keys T)))))
+
+(defun digit? (c)
+	(and (char>= c #\0) (char<= c #\9)))
+
+(let ((classes (make-hash-table)))
+	(doList (cc `((#\d ,#'digit?) (#\s ,#'white?)))
+		(setf (gethash (first cc) classes) (second cc)))
+	(defconstant +char-classes+ classes))
+
+(labels ((one-or-more (str pos test)
+	(if (and (> (length str) pos) (apply test (list (char str pos))))
+		(or (one-or-more str (+ pos 1) test) (+ pos 1))))
+	(any (str pos test)
+		(or (one-or-more str pos test) pos))
+	(maybe (str pos test)
+		(if (and (> (length str) pos) (apply test (list (char str pos))))
+			(+ pos 1)
+			pos)))
+			
+	(let ((rss (make-hash-table)))
+	(doList (rs `((#\+ ,#'one-or-more) (#\* ,#'any) (#\? ,#'maybe)))
+		(setf (gethash (first rs) rss) (second rs)))
+	(defconstant +rep-specs+ rss)))
+
+
+(defun regex-atom-reader (stream char)
+	(declare (ignore char))
+	(let* ((c (read-char stream))
+		(cc (hash[] c +char-classes+))
+		(rs (hash[] (peek-char nil stream) +rep-specs+)))
+
+	(unless cc (error "Unknown character class: ~S." c))
+
+	(if rs (progn (read-char stream)
+		(lambda (str pos)
+			(apply rs (list str pos cc))))
+		cc)))
+
+(set-macro-character #\/ 'regex-atom-reader)

@@ -110,7 +110,7 @@
 (defmacro s+ln (&rest strings)
 	(join (sep #\Newline) strings))
 
-(defmacro s/- (string length)
+(defmacro cuts (string length)
 	`(if (< ,length (length ,string))
 		(subseq ,string 0 ,length)
 		,string))
@@ -131,3 +131,45 @@
 	(let* ((p (sb-ext:run-program "/bin/sh" (list "-c" (s+ "ls " *pwd* glob)) :output :stream))
 		(out (sb-ext:process-output p)))
 	(loop for x = (read-line out nil :eof) until (eql x :eof) collect x)))
+
+(defmacro +constructor (type keys &body body)
+	`(defmethod make-instance :around ((type (eql (find-class ',type))) &key ,@keys)
+		,@body))
+
+(defun times-str (str n)
+	(if (= n 0) "" (s+ str (times-str str (- n 1)))))
+
+(defmacro +simple-printer (type &body fields)
+	`(defmethod print-object ((this ,type) out)
+		,(append `(format out (s+ "<~S" (times-str " ~S" (length ',fields)) ">")
+			 (type-of this))
+			(loop for x in fields collect `(slot-value this ,x)))))
+
+(defun list-iterator (list)
+	(let ((next list))
+	(lambda ()
+		(let ((ret (car next)))
+		(setf next (cdr next))
+		ret))))
+
+(defmacro test-case ((input test-fun expected-output) &body body)
+	`(let ((output (apply (lambda (input) ,@body) '(,input))))
+	(unless (apply #',test-fun (list ,expected-output output))
+		(format t "TEST FAILED: ~S -> ~S != ~S~%	action: ~S~%"
+			',input ,expected-output output ',body))))
+
+(defun apply* (fun args)
+	(handler-case
+		(apply fun args)
+		(error (e) (warn (format nil "~A~A: ~A" fun args e)) nil)))
+
+(defun hash[] (key hash)
+	(if (not hash) nil
+		(gethash key hash)))
+
+(defun !hash (&optional (elements nil) (acc (make-hash-table)))
+	(if (not elements) acc
+	(let ((e (first elements)))
+	(setf (gethash (first e) acc) (second e))
+	(!hash (cdr elements) acc))))
+
