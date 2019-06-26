@@ -142,6 +142,7 @@
 (defmethod ~= ((this regex) (value string) &key (pos 0))
 	(with-slots (exp conditions) this
 	(let ((expi (list-iterator exp)) (keys nil) (lastkey nil) x (startpos pos))
+	(if (eql (first exp) :nil) (apply expi nil)) 
 	(tagbody
 	load (setf x (apply expi nil))
 	test (if (not x) (go quit))
@@ -152,8 +153,9 @@
 					(or (not (hash[] x conditions))
 						(apply* (hash[] x conditions) (list newkey 0))
 						(go quit))
-					(setf keys (append keys (list newkey))))
-					(setf x nil)
+					(setf keys (append keys (list newkey)))
+					(if (not (and (eql x :nil) (> (length newkey) 0)))
+						(setf x nil)))
 					(go quit))
 				(t (setf lastkey x) (setf x next) (go test))))
 		;; not symbol
@@ -170,7 +172,7 @@
 			(go load)))
 	quit)
 	(if x
-		(if (< startpos (length value))
+		(if (and (not (eql (first exp) :nil)) (< startpos (length value)))
 			(~= this value :pos (+ startpos 1)))
 		(or keys T)))))
 
