@@ -37,7 +37,7 @@
 		(if ,@pred (!+ ',name := input)))))
 
 
-(line-type blank (not (position-if-not #'white? input)))
+(line-type blank (~= (rgx `(:nil ,/s* :nil)) input))
 (line-type header-line (not (pos-not #\= input)))
 (line-type subheader-line (not (pos-not #\- input)))
 (line-type keyval-line (string= (cuts input 2) "!!"))
@@ -175,7 +175,7 @@
 (setf *paragraph-spechars* (append *default-spechars* `(
 	,(!+ 'spechar := #\\ :! (lambda (iter)
 		(with-slots (text pos) iter
-		(setf text (s+ (subseq text 0 pos) (subseq text (+ 1 pos))))
+		(setf text (s+ (subseq text 0 (- pos 1)) (subseq text pos)))
 		iter)))
 	,(!+ 'spechar := #\$ :! (region-tag-fun #'white?
 		(lambda (content)

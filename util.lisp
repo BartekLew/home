@@ -158,6 +158,11 @@
 		(format t "TEST FAILED: ~S -> ~S != ~S~%	action: ~S~%"
 			',input ,expected-output output ',body))))
 
+(defmacro test-case* ((test-fun expected-output) &body body)
+	`(let ((output (apply (lambda () ,@body) '())))
+	(unless (apply #',test-fun (list ,expected-output output))
+		(format t "TEST FAILED: ~S != ~S~%	action: ~S~%"
+			,expected-output output ',body))))
 (defun apply* (fun args)
 	(handler-case
 		(apply fun args)

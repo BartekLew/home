@@ -1,5 +1,6 @@
 (load (merge-pathnames "util.lisp" *load-truename*))
 (include "js.lisp")
+(include "string.lisp")
 
 ;; Create css-rule string
 (defun css-rule (selector rules)
@@ -68,7 +69,7 @@
 		(format nil "<~A~A ~A/>" type parstr boolpar)
 	(if (or (string= type "span") (string= type "i") (string= type "a"))
 		(format nil "<~A~A ~A>~A</~A>" type parstr boolpar (html content) type)
-	(format nil "<~A~A ~A>~%~A~%</~A>~%" type parstr boolpar (html content) type))))))
+	(~+ '("<" tagname " " parstr ">" content "</" parstr ">") type parstr (html content) type))))))
 
 (defmethod html ((l list))
 	(if l (concatenate 'string (html (car l)) (html (cdr l)))
@@ -88,7 +89,7 @@
 		"font-family: monospace" "color: #f0e0f0" "font-size: 0.8em"
 		"padding: 2em" "padding-top: 1em" "display: block"
 		"background-color: #101010" "margin-top: 2em" "font-weight:100"
-		"margin-bottom: -0.5em"))
+		"margin-bottom: 1.5em"))
 	("pre" ("margin-bottom: 0px" "padding: 0px"))
 	(".inline-code" ("font-family: monospace" "font-size:0.9em"
 		"font-weight: 600"))

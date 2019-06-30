@@ -11,7 +11,7 @@
 		(get-title (cdr content))))))
 
 (defun head-for (file)
-	(!+ 'tag := "a" :& `("href" ,(s+ "../" (subseq file (length *pwd*)))) :< "więcej artykułów"))
+	(!+ 'tag := "a" :& `("href" ,(s+ "../" (if (string= *pwd* "./") file (subseq file (length *pwd*))) )) :< "więcej artykułów"))
 
 (defun build-doc (f &optional (header nil))
 	(let ((doc (!+ 'document :from-file f

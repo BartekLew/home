@@ -8,7 +8,10 @@
 	(text i))
 
 (defmethod print-object ((si string-iterator) out)
-	(format out "<~A @~A '~A'>" (type-of si) (pos si) (cuts (format nil "~A" (value si)) 20)))
+	(with-slots (text pos) si
+	(let ((startpos (if (> pos 20) pos 0))
+		(endpos (if (> (+ pos 20) (length text)) (length text) (+ pos 20))))
+	(format out "<~A @~A '~A'>" (type-of si) (pos si) (subseq text startpos endpos)))))
 
 (defgeneric next (iter))
 (defmethod next ((i string-iterator))
@@ -36,9 +39,9 @@
 (defmacro replace-fun (new-val)
 	`(lambda (iterator)
 		(with-slots (text pos) iterator
-		(setf text (s+ (subseq text 0 pos)
+		(setf text (s+ (subseq text 0 (- pos 1))
 				,new-val
-				(subseq text (+ pos 1))))
+				(subseq text pos)))
 		(setf pos (+ pos (length ,new-val)))
 		iterator)))
 
@@ -80,11 +83,11 @@
 	`(lambda (iterator)
 		(with-slots (text pos) iterator
 		(let* ((endpos ,(if (characterp lim)
-				`(pos-not-escaped ,lim text (+ 1 pos))
-				`(pos-not-escaped-if ,lim text (+ 1 pos)))))
-		(discard-text (push-back (split-text iterator pos)
-					(,make-tag (subseq text (+ 1 pos) endpos)))
-				0 (- endpos pos))))))
+				`(pos-not-escaped ,lim text pos)
+				`(pos-not-escaped-if ,lim text pos))))
+		(discard-text (push-back (split-text iterator (- pos 1))
+					(,make-tag (subseq text pos endpos)))
+				0 (- endpos (- pos 1)))))))
 
 (defun split-spechar (delimiter)
 	(list (!+ 'spechar := delimiter :! (lambda (iterator)
@@ -124,6 +127,9 @@
 			(loop for x in exp
 				collect (if (typep x 'symbol) (apply symbol-i nil) x)))))))
 
+(defmethod ~+ ((this list) &rest symbols)
+	(apply '~+ (cons (rgx this nil) symbols)))
+
 (defgeneric  ~= (regex value &key))
 (defmethod ~= ((pattern string) (value string) &key (pos 0))
 	(let ((endpos (+ pos (length pattern))))
@@ -160,7 +166,7 @@
 				(t (setf lastkey x) (setf x next) (go test))))
 		;; not symbol
 			(let ((range (~= x value :pos pos)))
-			(if (or (not range) (and (not lastkey) (/= (first range) pos))) (go quit))
+			(if (or (not range) (and (not lastkey) (\/= (first range) pos))) (go quit))
 			(if lastkey
 				(let ((newkey (subseq value pos (first range))))
 				(or (not (hash[] lastkey conditions))
@@ -182,7 +188,7 @@
 (let ((classes (make-hash-table)))
 	(doList (cc `((#\d ,#'digit?) (#\s ,#'white?)))
 		(setf (gethash (first cc) classes) (second cc)))
-	(defconstant +char-classes+ classes))
+	(handler-case (defconstant +char-classes+ classes)( error(e) (format nil "~A" e))))
 
 (labels ((one-or-more (str pos test)
 	(if (and (> (length str) pos) (apply test (list (char str pos))))
@@ -197,7 +203,7 @@
 	(let ((rss (make-hash-table)))
 	(doList (rs `((#\+ ,#'one-or-more) (#\* ,#'any) (#\? ,#'maybe)))
 		(setf (gethash (first rs) rss) (second rs)))
-	(defconstant +rep-specs+ rss)))
+	(handler-case (defconstant +rep-specs+ rss) (error (e) (format nil "~A" e))) ))
 
 
 (defun regex-atom-reader (stream char)
@@ -214,3 +220,6 @@
 		cc)))
 
 (set-macro-character #\/ 'regex-atom-reader)
+
+(apply /d+ '("1234 foo" 0))
+(apply /d+ '("1234 foo" 5))
