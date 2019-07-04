@@ -25,11 +25,14 @@
 		head)))
 
 (defmethod print-object ((this chunk) out)
-	(format out "<~A '~A'/~A>" (type-of this) (value this)
-		(if (listp (tail this)) (length (tail this)) (taillen (tail this)))))
+	(format out "~A" (~+ (rgx '("<" name " '" value "'/" tail ">") nil) (type-of this) (value this) 
+		(if (listp (tail this)) (length (tail this)) (taillen (tail this))))))
+
 
 (defclass paragraph (chunk) ())
 (defclass blank (chunk) ())
+
+(print (!+ 'paragraph := "foobar"))
 
 (defmacro line-type (name &body pred)
 	`(progn (defclass ,name (chunk) ())
@@ -106,21 +109,31 @@
 
 (defmethod chunk+ ((a paragraph) (b blank)) nil)
 
-(defmethod chunk+ ((a blockcode-line) (b paragraph))
-	(!+ 'code-block := (value b) :block-type :code))
-
-(defmethod chunk+ ((a blockquote-line) (b paragraph))
-	(!+ 'code-block := (value b) :block-type :quote))
-
 (defun line-len (text len)
 	(if (> (length text) len)
 		(format nil "~A~%~A" (subseq text 0 len) 
 				(line-len (subseq text len) len))
 		text))
 
+(defun expand-tabs (str)
+	(~format str (list (!+ 'spechar := #\Tab :! (replace-fun "    ")))))
+
+(defun prep-code-ln (str)
+	(line-len (expand-tabs str) 76))
+
+(defmethod chunk+ ((a blockcode-line) (b paragraph))
+	(!+ 'code-block := (prep-code-ln (value b)) :block-type :code))
+
+(defmethod chunk+ ((a blockquote-line) (b paragraph))
+	(!+ 'code-block := (value b) :block-type :quote))
+
+
 (defmethod chunk+ ((a code-block) (b paragraph))
 	(if (not (closed a))
-		(!+ 'code-block := (format nil "~A~%~A" (value a) (line-len (value b) 76)) :block-type (block-type a))))
+		(!+ 'code-block := (format nil "~A~%~A"
+				(value a)
+				(prep-code-ln (value b)))
+			:block-type (block-type a))))
 
 (defmethod chunk+ ((a code-block) (b block-line))
 	(setf (closed a) T) a)
@@ -194,7 +207,7 @@
 (defvar *poem-spechars* (append *paragraph-spechars*
 	`(,(!+ 'spechar := #\Newline :! (lambda (iterator)
 		(with-slots (pos text) iterator
-		(push-back (split-text iterator pos)(!+ 'tag := "br"))))))))
+		(push-back (split-text iterator (- pos 1))(!+ 'tag := "br"))))))))
 
 (defvar *title-spechars* (append *default-spechars* `(
 	,(!+ 'spechar := #\\ :! (replace-fun ""))

@@ -69,7 +69,7 @@
 		(format nil "<~A~A ~A/>" type parstr boolpar)
 	(if (or (string= type "span") (string= type "i") (string= type "a"))
 		(format nil "<~A~A ~A>~A</~A>" type parstr boolpar (html content) type)
-	(~+ '("<" tagname " " parstr ">" content "</" parstr ">") type parstr (html content) type))))))
+	(~+ '("<" tagname " " parstr " " boolpar ">" content "</" parstr ">") type parstr boolpar (html content) type))))))
 
 (defmethod html ((l list))
 	(if l (concatenate 'string (html (car l)) (html (cdr l)))
@@ -87,15 +87,15 @@
 	("a" ("color: inherit" "font-size: inherit"))
 	("code" ("word-break: break-any"
 		"font-family: monospace" "color: #f0e0f0" "font-size: 0.8em"
-		"padding: 2em" "padding-top: 1em" "display: block"
+		"padding: 2em" "display: block"
 		"background-color: #101010" "margin-top: 2em" "font-weight:100"
-		"margin-bottom: 1.5em"))
+		"margin-bottom: 2em"))
 	("pre" ("margin-bottom: 0px" "padding: 0px"))
 	(".inline-code" ("font-family: monospace" "font-size:0.9em"
 		"font-weight: 600"))
 	("audio" ("width:50%" "margin-left: 25%" "margin-top: 1em" "margin-bottom: 2em" ))
 	("#toc" ("margin-bottom: 3em"))
-	("h3" ("margin-bottom: 0.5em"))
+	("h3" ("margin-bottom: 0.5em" "margin-top: 1.5em"))
 	("ol" ("margin-top: 0px"))
 	("#arts-list" ("margin-top: 3em"))
 	(".art-date" ("font-size: 0.8em" "font-style: italic"))

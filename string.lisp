@@ -42,7 +42,7 @@
 		(setf text (s+ (subseq text 0 (- pos 1))
 				,new-val
 				(subseq text pos)))
-		(setf pos (+ pos (length ,new-val)))
+		(setf pos (- (+ pos (length ,new-val)) 1))
 		iterator)))
 
 (defvar *default-spechars* `(

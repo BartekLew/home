@@ -98,5 +98,4 @@
 (test-case (("foo" "bar" "baz") equal "baz")
 	(text (discard-text (!+ 'split-string-iterator :<+ input :< "  baz") 0 2)))
 	
-	
 (sb-ext:quit)
