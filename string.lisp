@@ -47,7 +47,8 @@
 
 (defvar *default-spechars* `(
 	,(!+ 'spechar := #\< :! (replace-fun "&lt;"))
-	,(!+ 'spechar := #\> :! (replace-fun "&gt;"))))
+	,(!+ 'spechar := #\> :! (replace-fun "&gt;"))
+	,(!+ 'spechar := #\& :! (replace-fun "&amp;"))))
 
 (defclass split-string-iterator (string-iterator)
 	((split-part :initarg :<+ :initform '() :reader split-part)))
