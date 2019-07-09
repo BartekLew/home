@@ -32,8 +32,6 @@
 (defclass paragraph (chunk) ())
 (defclass blank (chunk) ())
 
-(print (!+ 'paragraph := "foobar"))
-
 (defmacro line-type (name &body pred)
 	`(progn (defclass ,name (chunk) ())
 	(defun ,name (input)
@@ -230,6 +228,8 @@
 	(content :reader content)
 	(keys :reader keys)))
 
+(+simple-printer source-file 'name) 
+
 (defmethod initialize-instance :after ((this source-file) &key)
 	(with-slots (name content keys) this
 	(setf content (chunks (mapcar #'>line (<f name))))
@@ -243,10 +243,16 @@
 (defmethod param ((this source-file) (key string))
 	(gethash key (keys this)))
 
+(defmethod read-date ((source source-file))
+	(let ((date-param (param source "DATE")))
+	(handler-case (~format date-param (split-spechar #\.))
+		(error (e) (declare (ignore e))
+			(warn "wrong date: ~S in file ~S. Assuming 7.10.1989" date-param (name source)) '("7" "10" "1989")))))
+
 (defgeneric date> (a b))
 (defmethod date> ((a source-file) (b source-file))
-	(let* ((date-a (~format (param a "DATE") (split-spechar #\.)))
-		(date-b (~format (param b "DATE") (split-spechar #\.)))
+	(let* ((date-a (read-date a))
+		(date-b (read-date b ))
 		(reltab (loop for ia in date-a
 				for ib in date-b
 				collect (- (read-from-string ia) (read-from-string ib)))))
