@@ -83,12 +83,15 @@
 (defmacro region-tag-fun (lim make-tag)
 	`(lambda (iterator)
 		(with-slots (text pos) iterator
+		(handler-case 
 		(let* ((endpos ,(if (characterp lim)
 				`(pos-not-escaped ,lim text pos)
 				`(pos-not-escaped-if ,lim text pos))))
 		(discard-text (push-back (split-text iterator (- pos 1))
 					(,make-tag (subseq text pos endpos)))
-				0 (- endpos (- pos 1)))))))
+				0 (- endpos (- pos 1))))
+		(error (e) (format t "Matching special sequence (expected ~S) failed in:~%~%~A~%~%  missed escape?" ,lim text)
+				(sb-ext:quit))))))
 
 (defun split-spechar (delimiter)
 	(list (!+ 'spechar := delimiter :! (lambda (iterator)
