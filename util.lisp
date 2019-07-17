@@ -178,3 +178,11 @@
 	(setf (gethash (first e) acc) (second e))
 	(!hash (cdr elements) acc))))
 
+(defmacro for-val (val &body body)
+	`(lambda (x) (if (eql x ,val) (or ,@body T))))
+
+(defun filteriter (iter test)
+	(let ((next (funcall iter)))
+	(if (and iter (not (apply test (list next))))
+		(filteriter iter test)
+		next)))

@@ -90,7 +90,8 @@
 		(discard-text (push-back (split-text iterator (- pos 1))
 					(,make-tag (subseq text pos endpos)))
 				0 (- endpos (- pos 1))))
-		(error (e) (format t "Matching special sequence (expected ~S) failed in:~%~%~A~%~%  missed escape?" ,lim text)
+		(error (e) (declare (ignore e))
+				(format t "Matching special sequence (expected ~S) failed in:~%~%~A~%~%  missed escape?" ,lim text)
 				(sb-ext:quit))))))
 
 (defun split-spechar (delimiter)

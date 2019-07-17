@@ -182,6 +182,35 @@
 (defmethod chunks= ((cs1 chunk) (cs2 chunk))
 	(and (chunk= cs1 cs2) (chunks= (tail cs1) (tail cs2))))
 
+(defgeneric select (from what))
+(defmethod select ((chunks chunk) (type symbol))
+	(let ((iter (chunk-iterator chunks)))
+	(loop for chunk = (funcall iter)
+		while chunk
+		collect (if (typep chunk type) chunk))))
+	
+
+(defgeneric >src (what))
+(defmethod >src ((p paragraph))
+	(value p))
+
+(defmethod >src ((h header))
+	(format nil "~A~%~A~%" (value h)
+			(match (level h) (list
+				(for-val 2 "=============")
+				(for-val 3 "-------------")))))
+
+(defmethod >src ((kv keyval-line))
+	(format nil "!!~A: ~A~%" (first (value kv)) (second (value kv))))
+
+(defmethod >src ((b code-block))
+	(match (block-type b) (list
+		(for-val :quote (format nil "\"\"\"~%~A~%\"\"\"~%" (value b)))
+		(for-val :code (format nil "```~%~A~%```~%" (value b))))))
+
+(defmethod >src ((b blank))
+	(format nil "~%"))
+
 (defvar *paragraph-spechars* nil)
 (setf *paragraph-spechars* (append *default-spechars* `(
 	,(!+ 'spechar := #\\ :! (lambda (iter)
@@ -295,7 +324,8 @@
 	(if (string= (first (value k)) "INDEX")
 		(index-tag (files (second (value k))))
 	(if (string= (first (value k)) "IMAGE")
-		(!+ 'tag := "img" :& `("src" ,(second (value k)))))))
+		(!+ 'tag := "center" :<
+			(!+ 'tag := "img" :& `("src" ,(second (value k))))))))
 		(call-next-method)))
 
 ;; document class
