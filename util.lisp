@@ -128,9 +128,10 @@
 	(subseq name 0 (+ pos 1)))))
 
 (defun files (glob)
+	(if (listp glob) (apply #'concatenate (cons 'list (loop for x in glob collect (files x))))
 	(let* ((p (sb-ext:run-program "/bin/sh" (list "-c" (s+ "ls " *pwd* glob)) :output :stream))
 		(out (sb-ext:process-output p)))
-	(loop for x = (read-line out nil :eof) until (eql x :eof) collect x)))
+	(loop for x = (read-line out nil :eof) until (eql x :eof) collect x))))
 
 (defmacro +constructor (type keys &body body)
 	`(defmethod make-instance :around ((type (eql (find-class ',type))) &key ,@keys)
@@ -178,11 +179,27 @@
 	(setf (gethash (first e) acc) (second e))
 	(!hash (cdr elements) acc))))
 
-(defmacro for-val (val &body body)
-	`(lambda (x) (if (eql x ,val) (or ,@body T))))
+(defmacro for-val (val test &body body)
+	`(lambda (x) (if (funcall ,test x ,val) (or ,@body T))))
 
 (defun filteriter (iter test)
 	(let ((next (funcall iter)))
 	(if (and iter (not (apply test (list next))))
 		(filteriter iter test)
 		next)))
+
+(defun splitstr (str delim &optional acc)
+	(if (> (length str) 0) (let ((p (position delim str)))
+			(if p (splitstr (subseq str (+ p 1)) delim (append acc (list (subseq str 0 p))))
+				(append acc (list str))))
+		acc))
+
+(defun relative-path (base file)
+	(labels ((skip-common (a b)
+		(if (or a b)
+			(if (string= (car a) (car b)) (skip-common (cdr a) (cdr b))
+				(list a b)))))
+	(let ((diff (skip-common (splitstr base #\/) (splitstr file #\/))))
+		(if diff
+			(s+ (times-str "../" (- (length (car diff)) 1))
+				(join (sep #\/) (second diff)))))))

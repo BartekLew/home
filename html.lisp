@@ -94,15 +94,16 @@
 	(".inline-code" ("font-family: monospace" "font-size:0.9em"
 		"font-weight: 600"))
 	("audio" ("width:50%" "margin-left: 25%" "margin-top: 1em" "margin-bottom: 2em" ))
-	("#toc" ("margin-bottom: 3em"))
+	("#toc" ("margin-top: 2em" "margin-bottom: 3em"))
 	("h3" ("margin-bottom: 0.5em" "margin-top: 1.5em"))
 	("ol" ("margin-top: 0px"))
-	("#arts-list" ("margin-top: 3em"))
+	("#arts-list" ("margin-top: 1.5em"))
 	(".art-date" ("font-size: 0.8em" "font-style: italic"))
 	(".docs-item" ("margin-left: 1em" "margin-right: 1em" "margin-bottom:0.5em" "text-align: center"))
 	("img" ("max-width:80%" "margin: 1em 10%"))
 	(".poem-block" ("text-align: center" "text-style: italic"))
 	("#header" ("text-align: center"))
+	("#closing" ("text-align: center" "margin-bottom: 2em"))
 	("ul" ("list-style-type: none" "padding: 0.4em" "margin: 0em"))
 ))
 

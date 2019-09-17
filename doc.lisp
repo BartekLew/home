@@ -192,21 +192,21 @@
 
 (defgeneric >src (what))
 (defmethod >src ((p paragraph))
-	(value p))
+	(format nil "~A~%" (value p)))
 
 (defmethod >src ((h header))
 	(format nil "~A~%~A~%" (value h)
 			(match (level h) (list
-				(for-val 2 "=============")
-				(for-val 3 "-------------")))))
+				(for-val 2 #'eql "=============")
+				(for-val 3 #'eql "-------------")))))
 
 (defmethod >src ((kv keyval-line))
 	(format nil "!!~A: ~A~%" (first (value kv)) (second (value kv))))
 
 (defmethod >src ((b code-block))
 	(match (block-type b) (list
-		(for-val :quote (format nil "\"\"\"~%~A~%\"\"\"~%" (value b)))
-		(for-val :code (format nil "```~%~A~%```~%" (value b))))))
+		(for-val :quote #'eql (format nil "\"\"\"~%~A~%\"\"\"~%" (value b)))
+		(for-val :code #'eql (format nil "```~%~A~%```~%" (value b))))))
 
 (defmethod >src ((b blank))
 	(format nil "~%"))
@@ -249,7 +249,9 @@
 	(loop (let ((v (apply iter nil)))
 		(if (not v) (return))
 		(if (typep v 'keyval-line)
-			(setf (gethash (first (value v)) keys) (second (value v))))))
+			(let ((key (first (value v))) (val (second (value v))))
+				(setf (gethash key keys)
+					(cons val (gethash key keys))))))) 
 	keys))
 
 (defclass source-file ()
@@ -270,7 +272,7 @@
 
 (defgeneric param (doc key))
 (defmethod param ((this source-file) (key string))
-	(gethash key (keys this)))
+	(car (gethash key (keys this))))
 
 (defmethod read-date ((source source-file))
 	(let ((date-param (param source "DATE")))
@@ -291,54 +293,14 @@
 			(and (= (second reltab) 0) (> (first reltab) 0)))))))
 	
 (defun doc-link (doc)
-	(!+ 'tag := "div" :& '("class" "docs-item") :< (list
+	(!+ 'tag := "div" :& '("class" "docs-item") :< (cons
 		(!+ 'tag := "a" :& `("href" ,(linkf (name doc))) :< (~format (title doc) *paragraph-spechars*))
-		(!+ 'tag := "span" :& '("class" "art-date")
-			:< (format nil " (~A)" (param doc "DATE"))))))
+		(if (param doc "DATE") (list (!+ 'tag := "span" :& '("class" "art-date")
+			:< (format nil " (~A)" (param doc "DATE"))))))))
 
 (defun index-tag (files)
 	(!+ 'tag := "div" :& '("id" "arts-list") 
 		:< (mapcar #'doc-link (sort (mapcar (lambda (x) (!+ 'source-file := x)) files) #'date>))))
-
-(defgeneric >tags (chunk))
-(defmethod >tags ((c chunk))
-	(if (tail c) (>tags (tail c))))
-
-(defmethod >tags ((p paragraph))
-	(cons (!+ 'tag := "p" :< (~format (value p) *paragraph-spechars*)) (call-next-method)))
-
-(defmethod >tags ((h header))
-	(cons (!+ 'tag := (format nil "h~a" (level h)) :& `("id" ,(page-bookmark h))
-		:< (~format (value h) *paragraph-spechars*)) (call-next-method)))
-
-(defmethod >tags ((c code-block))
-	(cons (if (eql (block-type c) :code)
-		(!+ 'tag := "pre" :< (!+ 'tag := "code" :< (~format (value c))))
-		(!+ 'tag := "div" :& '("class" "poem-block") :< (~format (value c) *poem-spechars*))) (call-next-method)))
-
-(defmethod >tags ((k keyval-line))
-	(cons (if (string= (first (value k)) "AUDIO")
-		(!+ 'tag := "audio" :&- "controls"
-			:< (!+ 'tag := "source" :& `("src" ,(second (value k))
-						"type" "audio/mpeg"))) 
-	(if (string= (first (value k)) "INDEX")
-		(index-tag (files (second (value k))))
-	(if (string= (first (value k)) "IMAGE")
-		(!+ 'tag := "center" :<
-			(!+ 'tag := "img" :& `("src" ,(second (value k))))))))
-		(call-next-method)))
-
-;; document class
-(defclass document ()
-	(content
-	(header :initarg :header :initform '())
-	(title :initarg :title :initform "Peace!")
-	(style :initarg :style :initform '())
-	(footer :initarg :footer :initform '())
-	(init :initarg :init :initform '())
-	(refs :initform '() :reader refs)))
-
-(defgeneric with-content (doc chunk))
 
 (defclass toc ()
 	((title :reader title) (tree :reader tree)))
@@ -367,16 +329,65 @@
 				:< (if (= (length x) 1) (link (car x))
 					(list (link (car x)) (!+ 'tag := "ul" :< (mapcar (lambda (x)
 						(!+ 'tag := "li" :< (link x)))(cdr x))))))) (tree toc))))))))
-		
+
+(defgeneric >tags (chunk))
+(defmethod >tags ((c chunk))
+	(if (tail c) (>tags (tail c))))
+
+(defmethod >tags ((p paragraph))
+	(cons (!+ 'tag := "p" :< (~format (value p) *paragraph-spechars*)) (call-next-method)))
+
+(defmethod >tags ((h header))
+	(cons (!+ 'tag := (format nil "h~a" (level h)) :& `("id" ,(page-bookmark h))
+		:< (~format (value h) *paragraph-spechars*)) (call-next-method)))
+
+(defmethod >tags ((c code-block))
+	(cons (if (eql (block-type c) :code)
+		(!+ 'tag := "pre" :< (!+ 'tag := "code" :< (~format (value c))))
+		(!+ 'tag := "div" :& '("class" "poem-block") :< (~format (value c) *poem-spechars*))) (call-next-method)))
+
+(defmethod >tags ((k keyval-line))
+	(cons (match (first (value k)) (list
+		(for-val "AUDIO" #'string=
+			(!+ 'tag := "audio" :&- "controls"
+				:< (!+ 'tag := "source" :& `("src" ,(second (value k))
+						"type" "audio/mpeg"))))
+		(for-val "INDEX" #'string=
+			(index-tag (files (second (value k)))))
+		(for-val "IMAGE" #'string=
+			(!+ 'tag := "center" :<
+				(!+ 'tag := "img" :& `("src" ,(second (value k))))))
+		(for-val "TOC" #'string= (toc? k))
+		(for-val "TRAILER" #'string=
+			(!+ 'tag := "img" :& `("width" "0" "height" "0" "src" ,(second (value k)))))))
+	(call-next-method)))
+
+;; document class
+(defclass document ()
+	(content
+	(header :initarg :header :initform '())
+	(title :initarg :title :initform nil)
+	(style :initarg :style :initform '())
+	(footer :initarg :footer :initform '())
+	(init :initarg :init :initform '())
+	(refs :initform '() :reader refs)
+	(closing :initform '() :initarg :closing :reader closing)
+	(childclosing :initform '() :reader childclosing)))
+
+(defgeneric with-content (doc chunk))
+
 (defmethod with-content ((this document) (chunks header))
 	(setf (slot-value this 'title) (value chunks))
 	(with-content this (tail chunks)))
 
 (defmethod with-content ((this document) (chunks chunk))
-	(with-slots (content refs) this
+	(with-slots (content refs closing childclosing) this
 	(setf refs (let ((idx (gethash "INDEX" (get-keys chunks))))
 		(if idx (files idx))))
-	(setf content (cons (toc? chunks) (>tags chunks)))))
+	(setf childclosing (gethash "CHILDCLOSING" (get-keys chunks)))
+	(let ((c (gethash "CLOSING" (get-keys chunks))))
+		(if c (setf closing c)))
+	(setf content (>tags chunks))))
 	
 (defmethod initialize-instance :after((this document) &key from-file by-val)
 	(if from-file (setf (slot-value this 'content)
@@ -388,10 +399,10 @@
 	(if by-val (setf (slot-value this 'content) by-val))))
 
 (defmethod html ((d document))
-	(with-slots (content title style init footer header) d
+	(with-slots (content title style init footer header closing) d
 	(html (!+ 'tag := "html" :< (list
 		(!+ 'tag := "head" :< (list
-			(!+ 'tag := "title" :< (~format title *title-spechars*))
+			(if title (!+ 'tag := "title" :< (~format title *title-spechars*)))
 			(!+ 'tag := "meta" :& '("charset" "utf-8"))
 			(!+ 'tag := "meta" :& '("name" "viewport" "content" "width=device-width, initial-scale=1.0"))
 			(!+ 'tag := "style" :& '("type" "text/css") :< (stylesheet (append *base-style* style)))
@@ -400,6 +411,6 @@
 		(!+ 'tag := "body" :& (if init '("onload" "init()") nil)
 			:< (list (if header (!+ 'tag := "div" :& '("id" "header") :< header))
 				 (!+ 'tag := "div" :& '("id" "art") 
-					:< (cons (!+ 'tag := "h1" :< (~format title *paragraph-spechars*)) content))
+					:< (cons (if title (!+ 'tag := "h1" :< (~format title *paragraph-spechars*))) content))
+				(if closing (!+ 'tag := "div" :& '("id" "closing") :< closing))
 				(!+ 'tag := "div" :& '("id" "footer") :< footer))))))))
-
