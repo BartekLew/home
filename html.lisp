@@ -101,7 +101,7 @@
 	(".art-date" ("font-size: 0.8em" "font-style: italic"))
 	(".docs-item" ("margin-left: 1em" "margin-right: 1em" "margin-bottom:0.5em" "text-align: center"))
 	("img" ("max-width:80%" "margin: 1em 10%"))
-	(".poem-block" ("text-align: center" "text-style: italic"))
+	(".poem-block" ("text-align: center" "text-style: italic" "margin-bottom: 1em"))
 	("#header" ("text-align: center"))
 	("#closing" ("text-align: center" "margin-bottom: 2em"))
 	("ul" ("list-style-type: none" "padding: 0.4em" "margin: 0em"))

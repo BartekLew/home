@@ -274,11 +274,16 @@
 (defmethod param ((this source-file) (key string))
 	(car (gethash key (keys this))))
 
+(defun split (string delim &optional acc)
+    (let ((delpos (position delim string)))
+       (if delpos
+           (split (subseq string (+ delpos 1))
+                  delim (cons (subseq string 0 delpos) acc))
+	   (reverse (cons string acc)))))
+
 (defmethod read-date ((source source-file))
-	(let ((date-param (param source "DATE")))
-	(handler-case (~format date-param (split-spechar #\.))
-		(error (e) (declare (ignore e))
-			(warn "wrong date: ~S in file ~S. Assuming 7.10.1989" date-param (name source)) '("7" "10" "1989")))))
+	(let ((date (split (param source "DATE") #\.)))
+	    (if (and date (car date)) date  '("7" "10" "1989"))))
 
 (defgeneric date> (a b))
 (defmethod date> ((a source-file) (b source-file))
