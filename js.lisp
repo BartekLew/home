@@ -1,38 +1,33 @@
 (load (merge-pathnames "util.lisp" *load-truename*))
 
-(defclass js ()
-	((recipee :initarg := :reader js)))
+(category js-def)
+(category js-act)
 
-(defclass js-node (js) ())
-(defclass js-array (js) ())
-(defclass js-statement (js) ())
+(setf (js-def 'fun)
+      (lambda (name args &rest body)
+          (format nil "function ~A(~A){~{~A;~}}"
+                  name
+                  (reduce (lambda (a v) (format nil "~A, ~A" a v))
+                          args)
+                  (mapcar (lambda (v)
+                            (let ((f (and (listp v) (js-act (first v)))))
+                              (if f (apply f (rest v)) v)))
+                          body))))
 
-(defclass js-function (js)
-	((name :initarg :name :initform nil)
-	(args :initarg :args :initform nil)
-	(body :initarg :body)))
+(setf (js-act 'alert)
+      (lambda (&rest args)
+        (format nil "alert(~A)"
+                (reduce (lambda (a v)
+                          (format nil "~A + ~A" a v))
+                        args))))
 
-(defmethod js ((fun js-function))
-	(with-slots (name args body) fun
-	(format nil "function ~A(~A) {~%~A~%}"
-		name (or (join (sep #\Space) args) "") (js body))))
+(let ((counter 0))
+  (defun js-id (base)
+    (incf counter)
+    (format nil "~A_~X" base counter)))
 
-(defgeneric as-function (name body))
-(defmethod as-function ((name string) (body js-statement))
-	(!+ 'js-function :name name :body body))
-
-(defun js-select (&key class)
-(if class (!+ 'js-array := (format nil
-		"Array.from(document.getElementsByClassName(\"~a\"))" class))))
-
-(defgeneric each (set var-name &rest commands))
-(defmethod each ((arr js-array) id &rest commands)
-	(!+ 'js-statement := (format nil "~A.forEach(function(~A) {~A~%});" (js arr) id
-		(join (sep #\Newline) commands))))
-		
-(defgeneric hide (what))
-(defmethod hide ((elements js-array))
-	(each elements "e" "e.innerHTML = \"...\";"))
-
-(defclass js-iterator ()
-	((action :initarg :do)))
+(defun js (&rest definitions)
+  (!+ 'tag := "script"
+           :& '("type" "text/javascript")
+           :< (loop for def in definitions
+                    collect (apply (js-def (car def)) (cdr def)))))

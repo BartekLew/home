@@ -386,7 +386,6 @@
 	(title :initarg :title :initform nil)
 	(style :initarg :style :initform '())
 	(footer :initarg :footer :initform '())
-	(init :initarg :init :initform '())
 	(refs :initform '() :reader refs)
 	(closing :initform '() :initarg :closing :reader closing)
 	(childclosing :initform '() :reader childclosing)))
@@ -416,16 +415,15 @@
 	(if by-val (setf (slot-value this 'content) by-val))))
 
 (defmethod html ((d document))
-	(with-slots (content title style init footer header closing) d
+	(with-slots (content title style footer header closing) d
 	(html (!+ 'tag := "html" :< (list
 		(!+ 'tag := "head" :< (list
 			(if title (!+ 'tag := "title" :< (~format title *title-spechars*)))
 			(!+ 'tag := "meta" :& '("charset" "utf-8"))
 			(!+ 'tag := "meta" :& '("name" "viewport" "content" "width=device-width, initial-scale=1.0"))
 			(!+ 'tag := "style" :& '("type" "text/css") :< (stylesheet (append *base-style* style)))
-			(if init (!+ 'tag := "script" :& '("type" "text/javascript") :< (js (as-function "init" init))))
 		))
-		(!+ 'tag := "body" :& (if init '("onload" "init()") nil)
+		(!+ 'tag := "body"
 			:< (list (if header (!+ 'tag := "div" :& '("id" "header") :< header))
 				 (!+ 'tag := "div" :& '("id" "art") 
 					:< (cons (if title (!+ 'tag := "h1" :< (~format title *paragraph-spechars*))) content))

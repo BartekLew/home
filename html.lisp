@@ -2,6 +2,9 @@
 (include "js.lisp")
 (include "string.lisp")
 
+(defun style (&rest params)
+  (list "style" (format nil "~{~A;~}" params)))
+
 ;; Create css-rule string
 (defun css-rule (selector rules)
 	(format nil "~A {~%	~A~%}~%" selector
@@ -110,3 +113,20 @@
 (defun addStyle (key vals)
 	(setf *base-style* (append *base-style* `((,key ,vals)))))
 
+(defun canvas (&rest params)
+  (let ((id (js-id "canvas")))
+  (list
+    (apply #'js (remove-if #'not (loop for par in params
+              collect (if (find (first par)
+                                '("onmousedown" "onmouseup" "onclick")
+                                :test #'string=)
+                        `(fun ,(format nil "~A_~A" (first par) id) ("event")
+                              ,@(second par))))))
+    (!+ 'tag := "canvas"
+         :& (apply #'append (loop for par in params
+                          collect (if (find (first par)
+                                            '("onmousedown" "onmouseup" "onclick")
+                                            :test #'string=)
+                                    (list (first par) (format nil "~A_~A(event)" (first par) id))
+                                    par)))
+         :< "Twoja przeglądarka nie wspiera canvas" ))))

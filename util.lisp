@@ -203,3 +203,11 @@
 		(if diff
 			(s+ (times-str "../" (- (length (car diff)) 1))
 				(join (sep #\/) (second diff)))))))
+
+(defmacro category (name)
+  `(let ((domain (make-hash-table)))
+    (defun ,name (key)
+      (let ((ans (gethash key domain)))
+        (or ans (error "Domain element ~A[~A] not found." domain key))))
+    (defun (setf ,name) (val key)
+      (setf (gethash key domain) val))))
