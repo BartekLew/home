@@ -42,14 +42,17 @@
 (line-type header-line (not (pos-not #\= input)))
 (line-type subheader-line (not (pos-not #\- input)))
 (line-type keyval-line (string= (cuts input 2) "!!"))
-(line-type block-line (or (string= "```" input) (string= "\"\"\"" input)))
+(line-type block-line (or (string= "```" input) (string= "\"\"\"" input)
+                          (string= "@@@" input)))
 
 (defclass blockquote-line (block-line)())
 (defclass blockcode-line (block-line)())
+(defclass blockgen-line (block-line)())
 
 (defmethod make-instance ((class (eql (find-class 'block-line))) &key =)
-	(if (string= = "```") (make-instance 'blockcode-line := =) 
-		(make-instance 'blockquote-line := =)))
+	(cond ((string= = "```") (make-instance 'blockcode-line := =))
+          ((string= = "\"\"\"") (make-instance 'blockquote-line := =))
+          ((string= = "@@@") (make-instance 'blockgen-line := =))))
 
 (defmethod initialize-instance :after ((this keyval-line) &key)
 	(with-slots (value) this
@@ -80,6 +83,7 @@
 
 (defmethod block-type ((x blockquote-line)) :quote)
 (defmethod block-type ((x blockcode-line)) :code)
+(defmethod block-type ((x blockgen-line)) :gen)
 
 (defgeneric chunk+ (a b))
 
@@ -121,6 +125,9 @@
 
 (defmethod chunk+ ((a blockcode-line) (b paragraph))
 	(!+ 'code-block := (prep-code-ln (value b)) :block-type :code))
+
+(defmethod chunk+ ((a blockgen-line) (b paragraph))
+	(!+ 'code-block := (prep-code-ln (value b)) :block-type :gen))
 
 (defmethod chunk+ ((a blockquote-line) (b paragraph))
 	(!+ 'code-block := (value b) :block-type :quote))
@@ -206,7 +213,8 @@
 (defmethod >src ((b code-block))
 	(match (block-type b) (list
 		(for-val :quote #'eql (format nil "\"\"\"~%~A~%\"\"\"~%" (value b)))
-		(for-val :code #'eql (format nil "```~%~A~%```~%" (value b))))))
+		(for-val :code #'eql (format nil "```~%~A~%```~%" (value b)))
+        (for-val :gen #'eql (format nil "@@@~%~A~%@@@~%" (value b))))))
 
 (defmethod >src ((b blank))
 	(format nil "~%"))
@@ -347,9 +355,13 @@
 		:< (~format (value h) *paragraph-spechars*)) (call-next-method)))
 
 (defmethod >tags ((c code-block))
-	(cons (if (eql (block-type c) :code)
-		(!+ 'tag := "pre" :< (!+ 'tag := "code" :< (~format (value c))))
-		(!+ 'tag := "div" :& '("class" "poem-block") :< (~format (value c) *poem-spechars*))) (call-next-method)))
+	(cons
+      (cond ((eql (block-type c) :code)
+		        (!+ 'tag := "pre" :< (!+ 'tag := "code" :< (~format (value c)))))
+            ((eql (block-type c) :quote)
+             (!+ 'tag := "div" :& '("class" "poem-block") :< (~format (value c) *poem-spechars*)))
+            ((eql (block-type c) :gen)
+             (eval (read-from-string (value c))))) (call-next-method)))
 
 (defmethod >tags ((k keyval-line))
 	(cons (match (first (value k)) (list
