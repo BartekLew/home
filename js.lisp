@@ -1,7 +1,28 @@
 (load (merge-pathnames "util.lisp" *load-truename*))
 
 (category js-def)
-(category js-act)
+
+(defun js-name (name)
+  (cond ((symbolp name)
+          (reduce (lambda (a v)
+                    (format nil "~A~A~A" a (char-upcase (char v 0))
+                                       (subseq v 1)))
+                  (split (format nil "~A" (string-downcase name)) #\-)))
+        ((stringp name) (format nil "\"~A\"" name))
+        (t name)))
+
+(defun js-call (form)
+  (format nil "~A(~A)"
+          (if (listp (first form))
+            (reduce (sep #\.)
+                    (loop for x in (first form)
+                          collect (js-eval x)))
+            (js-name (first form)))
+          (reduce (sep #\,) (mapcar #'js-eval (rest form)))))
+
+(defun js-eval (form)
+  (handler-case (apply (js-def (first form)) (rest form))
+    (error () (if (listp form) (js-call form) (js-name form)))))
 
 (setf (js-def 'fun)
       (lambda (name args &rest body)
@@ -9,17 +30,11 @@
                   name
                   (reduce (lambda (a v) (format nil "~A, ~A" a v))
                           args)
-                  (mapcar (lambda (v)
-                            (let ((f (and (listp v) (js-act (first v)))))
-                              (if f (apply f (rest v)) v)))
-                          body))))
+                  (mapcar #'js-eval body))))
 
-(setf (js-act 'alert)
+(setf (js-def '+)
       (lambda (&rest args)
-        (format nil "alert(~A)"
-                (reduce (lambda (a v)
-                          (format nil "~A + ~A" a v))
-                        args))))
+        (reduce (sep #\+) (mapcar #'js-eval args))))
 
 (let ((counter 0))
   (defun js-id (base)
