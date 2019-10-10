@@ -235,3 +235,9 @@
         (t (exp-symbol (rest form)
                           sym value
                           (cons (first form) acc)))))
+
+(defmacro f (args &body body)
+  `(labels ((self ,args ,@body))
+     (lambda (&rest args)
+       (apply #'self args))))
+

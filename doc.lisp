@@ -354,14 +354,27 @@
 	(cons (!+ 'tag := (format nil "h~a" (level h)) :& `("id" ,(page-bookmark h))
 		:< (~format (value h) *paragraph-spechars*)) (call-next-method)))
 
+(defun next-form (string)
+  (if (position-if (lambda (x) (not (find x '(#\Space #\Newline #\Tab)))) string)
+    (multiple-value-bind (form len)
+      (read-from-string string)
+      (list (eval form) (subseq string len)))))
+
 (defmethod >tags ((c code-block))
 	(cons
       (cond ((eql (block-type c) :code)
 		        (!+ 'tag := "pre" :< (!+ 'tag := "code" :< (~format (value c)))))
             ((eql (block-type c) :quote)
-             (!+ 'tag := "div" :& '("class" "poem-block") :< (~format (value c) *poem-spechars*)))
+                (!+ 'tag := "div" :& '("class" "poem-block") :< (~format (value c) *poem-spechars*)))
             ((eql (block-type c) :gen)
-             (eval (read-from-string (value c))))) (call-next-method)))
+              (apply (f (input &optional acc)
+                      (let ((ans (next-form input)))
+                        (if (not ans) (reverse acc)
+                          (self (second ans)
+                                (cons (first ans) acc)))))
+                     (list (value c)))))
+
+            (call-next-method)))
 
 (defmethod >tags ((k keyval-line))
 	(cons (match (first (value k)) (list
@@ -429,3 +442,4 @@
 					:< (cons (if title (!+ 'tag := "h1" :< (~format title *paragraph-spechars*))) content))
 				(if closing (!+ 'tag := "div" :& '("id" "closing") :< closing))
 				(!+ 'tag := "div" :& '("id" "footer") :< footer))))))))
+

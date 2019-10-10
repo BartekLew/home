@@ -12,16 +12,18 @@
         (t name)))
 
 (defun js-block (&rest forms)
-  (reduce (sep #\;) (loop for x in forms collect (js-eval x :statement? T))))
+  (reduce (sep #\Newline) (loop for x in forms collect (js-eval x :statement? T))))
 
 (defun js-call (form &key statement?)
   (format nil "~A(~A)~A"
-          (if (listp (first form))
+          (if (listp+ (first form))
             (reduce (sep #\.)
                     (loop for x in (first form)
                           collect (js-eval x)))
             (js-name (first form)))
-          (reduce (sep #\,) (mapcar #'js-eval (rest form)))
+          (if (rest form)
+              (reduce (sep #\,) (mapcar #'js-eval (rest form)))
+              "")
           (if statement? #\; "")))
 
 (defun js-eval (form &key statement?)
@@ -69,6 +71,10 @@
       (lambda (a b)
         (format nil "~A = ~A;" (js-eval a) (js-eval b))))
 
+(setf (js-def ':=)
+      (lambda (a b)
+        (format nil "~A = ~A" (js-eval a) (js-eval b))))
+
 (setf (js-def '==)
       (lambda (a b)
         (format nil "~A == ~A" (js-eval a) (js-eval b))))
@@ -99,6 +105,18 @@
                                transforms :initial-value nil)
 
                        '((ctx.put-image-data pixel-data 0 0))))))
+
+(setf (js-def 'draw-line)
+      (lambda (canvas width &rest points)
+        (apply #'js-block
+               (append 
+                   `((let ctx ((,canvas get-context) "2d"))
+                     (ctx.begin-path)
+                     (= ctx.line-width ,width)
+                     (ctx.move-to ,(@ points '(0 0)) ,(@ points '(0 1))))
+                   (loop for x in (rest points)
+                         collect `(ctx.line-to ,(first x) ,(second x)))
+                   `((ctx.stroke))))))
 
 (let ((counter 0))
   (defun js-id (base)
