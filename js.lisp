@@ -12,29 +12,36 @@
         (t name)))
 
 (defun js-block (&rest forms)
-  (reduce (sep #\;) (loop for x in forms collect (js-eval x))))
+  (reduce (sep #\;) (loop for x in forms collect (js-eval x :statement? T))))
 
-(defun js-call (form)
-  (format nil "~A(~A)"
+(defun js-call (form &key statement?)
+  (format nil "~A(~A)~A"
           (if (listp (first form))
             (reduce (sep #\.)
                     (loop for x in (first form)
                           collect (js-eval x)))
             (js-name (first form)))
-          (reduce (sep #\,) (mapcar #'js-eval (rest form)))))
+          (reduce (sep #\,) (mapcar #'js-eval (rest form)))
+          (if statement? #\; "")))
 
-(defun js-eval (form)
+(defun js-eval (form &key statement?)
   (if (not (listp form)) (return-from js-eval (js-name form)))
   (handler-case (apply (js-def (first form)) (rest form))
-    (not-in-category () (js-call form))))
+    (not-in-category () (js-call form :statement? statement?))))
 
 (setf (js-def 'fun)
       (lambda (name args &rest body)
-          (format nil "function ~A(~A){~{~A;~}}"
+          (format nil "function ~A(~A){~{~A~}}"
                   name
                   (reduce (lambda (a v) (format nil "~A, ~A" a v))
                           args)
-                  (mapcar #'js-eval body))))
+                  (mapcar (lambda (x) (js-eval x :statement? T)) body))))
+
+(setf (js-def 'if)
+      (lambda (condition action &optional if-else)
+        (format nil "if (~a) {~a}~a"
+                (js-eval condition) (js-eval action :statement? T)
+                (if if-else (format nil "else {~a}" (js-eval if-else :statement? T)) ""))))
 
 (setf (js-def '+)
       (lambda (&rest args)
@@ -48,7 +55,7 @@
 
 (setf (js-def 'let)
       (lambda (name value)
-        (format nil "var ~A = ~A" (js-name name) (js-eval value))))
+        (format nil "var ~A = ~A;" (js-name name) (js-eval value))))
 
 (setf (js-def 'prop)
       (lambda (obj p)
@@ -60,7 +67,11 @@
 
 (setf (js-def '=)
       (lambda (a b)
-        (format nil "~A = ~A" (js-eval a) (js-eval b))))
+        (format nil "~A = ~A;" (js-eval a) (js-eval b))))
+
+(setf (js-def '==)
+      (lambda (a b)
+        (format nil "~A == ~A" (js-eval a) (js-eval b))))
 
 (setf (js-def 'by-id)
       (lambda (id)
