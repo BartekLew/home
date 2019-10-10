@@ -204,10 +204,34 @@
 			(s+ (times-str "../" (- (length (car diff)) 1))
 				(join (sep #\/) (second diff)))))))
 
+(define-condition not-in-category (error)
+  ((category :initarg :in :reader catg)
+   (key :initarg key :reader key)))
+
 (defmacro category (name &optional default)
   `(let ((domain (make-hash-table)))
     (defun ,name (key)
       (let ((ans (gethash key domain)))
-        (or ans (error "Domain element ~A[~A] not found." domain key))))
+        (or ans (error 'not-in-category :in ',name :key key))))
     (defun (setf ,name) (val key)
       (setf (gethash key domain) val))))
+
+(defun @ (tree idx)
+  (if (not idx) tree
+    (@ (nth (first idx) tree) (rest idx))))
+
+(defun listp+ (x)
+  (and x (listp x)))
+
+(defun exp-symbol (form sym value &optional acc)
+  (cond ((not form) (reverse acc))
+        ((eql sym (first form))
+           (exp-symbol (rest form)
+                       sym value
+                       (cons value acc)))
+        ((listp+ (first form))
+             (exp-symbol (rest form) sym value
+                         (cons (exp-symbol (first form) sym value) acc)))
+        (t (exp-symbol (rest form)
+                          sym value
+                          (cons (first form) acc)))))

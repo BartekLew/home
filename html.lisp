@@ -118,15 +118,16 @@
   (list
     (apply #'js (remove-if #'not (loop for par in params
               collect (if (find (first par)
-                                '("onmousedown" "onmouseup" "onclick")
+                                '("onmousedown" "onmouseup" "onclick" "onload")
                                 :test #'string=)
                         `(fun ,(format nil "~A_~A" (first par) id) ("event")
-                              ,@(second par))))))
+                              ,@(exp-symbol (second par) 'this `(by-id ,id)))))))
     (!+ 'tag := "canvas"
-         :& (apply #'append (loop for par in params
+         :& (apply #'append (cons `("id" ,id) (loop for par in params
                           collect (if (find (first par)
-                                            '("onmousedown" "onmouseup" "onclick")
+                                            '("onmousedown" "onmouseup" "onclick" "onload")
                                             :test #'string=)
                                     (list (first par) (format nil "~A_~A(event)" (first par) id))
-                                    par)))
-         :< "Twoja przeglądarka nie wspiera canvas" ))))
+                                    par))))
+         :< "Twoja przeglądarka nie wspiera canvas" )
+    (!+ 'tag := "script" :< (format nil "onload_~A(0);" id)))))
