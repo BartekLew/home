@@ -67,12 +67,13 @@
 
 (defmethod html ((this tag))
 (with-slots (type par boolpar content) this
+  (format nil "~A~%"
 	(let ((parstr (params>str par)))
 	(if (eql content '())
 		(format nil "<~A~A ~A/>" type parstr boolpar)
 	(if (or (string= type "span") (string= type "i") (string= type "a"))
 		(format nil "<~A~A ~A>~A</~A>" type parstr boolpar (html content) type)
-	(~+ '("<" tagname " " parstr " " boolpar ">" content "</" parstr ">") type parstr boolpar (html content) type))))))
+	(~+ '("<" tagname " " parstr " " boolpar ">" content "</" parstr ">") type parstr boolpar (html content) type)))))))
 
 (defmethod html ((l list))
 	(if l (concatenate 'string (html (car l)) (html (cdr l)))
@@ -115,19 +116,32 @@
 
 (defun canvas (&rest params)
   (let ((id (js-id "canvas")))
-  (list
-    (apply #'js (remove-if #'not (loop for par in params
+    (values
+      (list
+        (apply #'js (remove-if #'not (loop for par in params
               collect (if (find (first par)
                                 '("onmousedown" "onmouseup" "onmousemove" "onclick" "onload")
                                 :test #'string=)
                         `(fun ,(format nil "~A_~A" (first par) id) ("event")
                               ,@(exp-symbol (second par) 'this `(by-id ,id)))))))
-    (!+ 'tag := "canvas"
-         :& (apply #'append (cons `("id" ,id) (loop for par in params
+        (!+ 'tag := "canvas"
+            :& (apply #'append (cons `("id" ,id) (loop for par in params
                           collect (if (find (first par)
                                             '("onmousedown" "onmouseup" "onmousemove" "onclick" "onload")
                                             :test #'string=)
                                     (list (first par) (format nil "~A_~A(event)" (first par) id))
                                     par))))
-         :< "Twoja przeglądarka nie wspiera canvas" )
-    (!+ 'tag := "script" :< (format nil "onload_~A(0);" id)))))
+            :< "Twoja przeglądarka nie wspiera canvas" )
+        (!+ 'tag := "script" :< (format nil "onload_~A(0);" id)))
+      id)))
+
+(defun button (caption id action)
+  (list (js `(fun ,(format nil "~A_onclick" id) ()
+                   ,@(exp-symbol action 'this `(by-id id))))
+        (!+ 'tag := "button"
+                 :< caption
+                 :& `("id" ,id 
+                      "onclick" ,(format nil "~A_onclick()" id)))))
+
+(defun div (style &rest content)
+  (!+ 'tag := "div" :& (list "style" style) :< (apply #'append content)))

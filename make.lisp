@@ -2,7 +2,6 @@
 (include "doc.lisp")
 
 (defvar *pwd* ".")
-
 (defun use (file)
   (load (format nil "~A/~A" *pwd* file))
   nil)

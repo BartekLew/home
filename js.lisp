@@ -35,20 +35,37 @@
       (lambda (name args &rest body)
           (format nil "function ~A(~A){~{~A~}}"
                   name
-                  (reduce (lambda (a v) (format nil "~A, ~A" a v))
-                          args)
-                  (mapcar (lambda (x) (js-eval x :statement? T)) body))))
+                  (if args
+                    (reduce (lambda (a v) (format nil "~A, ~A" a v))
+                            args)
+                    "")
+                  (if body
+                    (mapcar (lambda (x) (js-eval x :statement? T)) body)
+                    ""))))
 
 (setf (js-def 'if)
       (lambda (condition action &optional if-else)
-        (format nil "if (~a) {~a}~a"
-                (js-eval condition) (js-eval action :statement? T)
+        (format nil "if (~a) {~{~a~}}~a"
+                (js-eval condition) (mapcar (lambda (x) (js-eval x :statement? T)) action)
                 (if if-else (format nil "else {~a}" (js-eval if-else :statement? T)) ""))))
 
 (setf (js-def '+)
       (lambda (&rest args)
         (format nil "(~A)"
             (reduce (sep #\+) (mapcar #'js-eval args)))))
+
+(setf (js-def '-)
+      (lambda (&rest args)
+        (format nil "(~A)"
+            (reduce (sep #\-) (mapcar #'js-eval args)))))
+
+(setf (js-def '++)
+      (lambda (arg)
+        (format nil "~A++;" (js-name arg))))
+
+(setf (js-def '--)
+      (lambda (arg)
+        (format nil "~A--;" (js-name arg))))
 
 (setf (js-def '*)
       (lambda (&rest args)
@@ -79,9 +96,41 @@
       (lambda (a b)
         (format nil "~A == ~A" (js-eval a) (js-eval b))))
 
+(setf (js-def '<)
+      (lambda (a b)
+        (format nil "~A < ~A" (js-eval a) (js-eval b))))
+
+(setf (js-def 'return)
+      (lambda (a)
+        (format nil "return ~A;" (js-eval a))))
+
 (setf (js-def 'by-id)
       (lambda (id)
-        (format nil "document.getElementById(\"~A\")" id)))
+        (format nil "document.getElementById(~A)" (js-eval id))))
+
+(setf (js-def 'for)
+      (lambda (setup &rest commands)
+        (format nil "for(var ~A; ~A; ~A) { ~{~A~} }"
+                (js-eval (first setup)) (js-eval (second setup)) (js-eval (third setup))
+                (loop for x in commands
+                      collect (js-eval x :statement? T)))))
+(setf (js-def 'json)
+      (lambda (obj)
+        (format nil "JSON.stringify(~A)" (js-eval obj))))
+
+(setf (js-def 'parse)
+      (lambda (obj)
+        (format nil "JSON.parse(~A)" (js-eval obj))))
+
+(setf (js-def 'try)
+      (lambda (forms backup)
+        (format nil "try { ~{~A~} } catch(exception) { ~{~A~} }"
+                (mapcar (lambda (x) (js-eval x :statement? T)) forms)
+                (mapcar (lambda (x) (js-eval x :statement? T)) backup))))
+
+(setf (js-def '@[])
+      (lambda (tab index)
+        (format nil "~A[~A]" (js-eval tab) (js-eval index))))
 
 (setf (js-def 'on-pixels)
       (lambda (canvas &rest transforms)
@@ -105,6 +154,11 @@
                                transforms :initial-value nil)
 
                        '((ctx.put-image-data pixel-data 0 0))))))
+
+(setf (js-def '[])
+      (lambda (&rest elements)
+        (format nil "[~A]"
+                (if elements (reduce (sep #\,) (mapcar #'js-eval elements)) ""))))
 
 (setf (js-def 'draw-line)
       (lambda (canvas width &rest points)
