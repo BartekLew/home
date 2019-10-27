@@ -154,6 +154,8 @@
 		(let ((kv (value b)))
 		(!+ 'code-block := (format nil "~A~%!!~A: ~A" (value a) (first kv) (second kv)) :block-type (block-type a)))))
 
+(defmethod chunk+ ((a block-line) (b blank)) a)
+
 (defmethod chunk+ ((a code-block) (b blank))
 	(if (not (closed a))
 		(progn (setf (value a) (format nil "~A~%" (value a))) a)))
