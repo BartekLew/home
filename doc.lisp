@@ -127,7 +127,7 @@
 	(!+ 'code-block := (prep-code-ln (value b)) :block-type :code))
 
 (defmethod chunk+ ((a blockgen-line) (b paragraph))
-	(!+ 'code-block := (prep-code-ln (value b)) :block-type :gen))
+	(!+ 'code-block := (value b) :block-type :gen))
 
 (defmethod chunk+ ((a blockquote-line) (b paragraph))
 	(!+ 'code-block := (value b) :block-type :quote))
@@ -137,7 +137,9 @@
 	(if (not (closed a))
 		(!+ 'code-block := (format nil "~A~%~A"
 				(value a)
-				(prep-code-ln (value b)))
+				(if (eql (block-type a) :gen)
+                    (value b)
+                    (prep-code-ln (value b))))
 			:block-type (block-type a))))
 
 (defmethod chunk+ ((a code-block) (b block-line))
@@ -387,9 +389,7 @@
 		(for-val "IMAGE" #'string=
 			(!+ 'tag := "center" :<
 				(!+ 'tag := "img" :& `("src" ,(second (value k))))))
-		(for-val "TOC" #'string= (toc? k))
-		(for-val "TRAILER" #'string=
-			(!+ 'tag := "img" :& `("width" "0" "height" "0" "src" ,(second (value k)))))))
+		(for-val "TOC" #'string= (toc? k))))
 	(call-next-method)))
 
 ;; document class
@@ -401,6 +401,7 @@
 	(footer :initarg :footer :initform '())
 	(refs :initform '() :reader refs)
 	(closing :initform '() :initarg :closing :reader closing)
+    (trailer :initform "")
 	(childclosing :initform '() :reader childclosing)))
 
 (defgeneric with-content (doc chunk))
@@ -410,10 +411,11 @@
 	(with-content this (tail chunks)))
 
 (defmethod with-content ((this document) (chunks chunk))
-	(with-slots (content refs closing childclosing) this
+	(with-slots (content refs closing childclosing trailer) this
 	(setf refs (let ((idx (gethash "INDEX" (get-keys chunks))))
 		(if idx (files idx))))
 	(setf childclosing (gethash "CHILDCLOSING" (get-keys chunks)))
+    (setf trailer (car (gethash "TRAILER" (get-keys chunks))))
 	(let ((c (gethash "CLOSING" (get-keys chunks))))
 		(if c (setf closing c)))
 	(setf content (>tags chunks))))
@@ -428,12 +430,13 @@
 	(if by-val (setf (slot-value this 'content) by-val))))
 
 (defmethod html ((d document))
-	(with-slots (content title style footer header closing) d
+	(with-slots (content title style footer header closing trailer) d
 	(html (!+ 'tag := "html" :< (list
 		(!+ 'tag := "head" :< (list
 			(if title (!+ 'tag := "title" :< (~format title *title-spechars*)))
 			(!+ 'tag := "meta" :& '("charset" "utf-8"))
 			(!+ 'tag := "meta" :& '("name" "viewport" "content" "width=device-width, initial-scale=1.0"))
+            (!+ 'tag := "meta" :& `("property" "og:image" "content" ,trailer))
 			(!+ 'tag := "style" :& '("type" "text/css") :< (stylesheet (append *base-style* style)))
 		))
 		(!+ 'tag := "body"
