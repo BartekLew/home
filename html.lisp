@@ -67,7 +67,7 @@
 
 (defmethod html ((this tag))
 (with-slots (type par boolpar content) this
-  (format nil "~A~%"
+  (format nil "~A"
 	(let ((parstr (params>str par)))
 	(if (eql content '())
 		(format nil "<~A~A ~A/>" type parstr boolpar)

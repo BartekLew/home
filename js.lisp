@@ -33,7 +33,7 @@
 
 (setf (js-def 'fun)
       (lambda (name args &rest body)
-          (format nil "function ~A(~A){~{~A~}}"
+          (format nil "function ~A(~A){~{~A~}}~%~%"
                   name
                   (if args
                     (reduce (lambda (a v) (format nil "~A, ~A" a v))
@@ -45,14 +45,27 @@
 
 (setf (js-def 'if)
       (lambda (condition action &optional if-else)
-        (format nil "if (~a) {~{~a~}}~a"
+        (format nil "if (~a) {~{~a~}}~a~%"
                 (js-eval condition) (mapcar (lambda (x) (js-eval x :statement? T)) action)
-                (if if-else (format nil "else {~a}" (js-eval if-else :statement? T)) ""))))
+                (if if-else (format nil "else {~{~a~}}"
+                                    (mapcar (lambda (x) (js-eval x :statement? T)) if-else)) ""))))
 
 (setf (js-def '+)
       (lambda (&rest args)
         (format nil "(~A)"
             (reduce (sep #\+) (mapcar #'js-eval args)))))
+
+(setf (js-def 'and)
+      (lambda (&rest args)
+        (format nil "(~A)"
+            (reduce (lambda (a v) (format nil "~A && ~A" a v))
+                    (mapcar #'js-eval args)))))
+
+(setf (js-def 'or)
+      (lambda (&rest args)
+        (format nil "(~A)"
+            (reduce (lambda (a v) (format nil "~A || ~A" a v))
+                    (mapcar #'js-eval args)))))
 
 (setf (js-def '-)
       (lambda (&rest args)
@@ -96,9 +109,25 @@
       (lambda (a b)
         (format nil "~A == ~A" (js-eval a) (js-eval b))))
 
+(setf (js-def '!=)
+      (lambda (a b)
+        (format nil "~A != ~A" (js-eval a) (js-eval b))))
+
 (setf (js-def '<)
       (lambda (a b)
         (format nil "~A < ~A" (js-eval a) (js-eval b))))
+
+(setf (js-def '<=)
+      (lambda (a b)
+        (format nil "~A <= ~A" (js-eval a) (js-eval b))))
+
+(setf (js-def '>)
+      (lambda (a b)
+        (format nil "~A > ~A" (js-eval a) (js-eval b))))
+
+(setf (js-def '>=)
+      (lambda (a b)
+        (format nil "~A >= ~A" (js-eval a) (js-eval b))))
 
 (setf (js-def 'return)
       (lambda (a)
@@ -114,6 +143,20 @@
                 (js-eval (first setup)) (js-eval (second setup)) (js-eval (third setup))
                 (loop for x in commands
                       collect (js-eval x :statement? T)))))
+
+(setf (js-def 'foreach)
+      (lambda (setup &rest commands)
+        (format nil "for(~A in ~A) { ~{~A~} }"
+                (js-eval (first setup)) (js-eval (second setup))
+                (loop for x in commands
+                      collect (js-eval x :statement? T)))))
+
+(setf (js-def 'while)
+      (lambda (cond &rest body)
+        (format nil "while (~A) {~{~A~}}"
+                (js-eval cond)
+                (mapcar #'js-eval body))))
+
 (setf (js-def 'json)
       (lambda (obj)
         (format nil "JSON.stringify(~A)" (js-eval obj))))
@@ -127,6 +170,13 @@
         (format nil "try { ~{~A~} } catch(exception) { ~{~A~} }"
                 (mapcar (lambda (x) (js-eval x :statement? T)) forms)
                 (mapcar (lambda (x) (js-eval x :statement? T)) backup))))
+
+(setf (js-def 'throw)
+      (lambda (what)
+        (format nil "throw ~A;" (js-eval what))))
+
+(setf (js-def 'continue)
+      (lambda () "continue;"))
 
 (setf (js-def '@[])
       (lambda (tab index)
@@ -154,6 +204,14 @@
                                transforms :initial-value nil)
 
                        '((ctx.put-image-data pixel-data 0 0))))))
+
+(setf (js-def 'array?)
+      (lambda (x)
+        (format nil "Array.isArray(~A)" (js-eval x))))
+
+(setf (js-def 'typeof)
+      (lambda (x)
+        (format nil "typeof ~A" (js-eval x))))
 
 (setf (js-def '[])
       (lambda (&rest elements)
