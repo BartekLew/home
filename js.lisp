@@ -2,6 +2,12 @@
 
 (category js-def)
 
+(defun splitstr (str delim &optional acc)
+	(if (> (length str) 0) (let ((p (position delim str)))
+			(if p (splitstr (subseq str (+ p 1)) delim (append acc (list (subseq str 0 p))))
+				(append acc (list str))))
+		acc))
+
 (defun js-name (name)
   (cond ((symbolp name)
           (reduce (lambda (a v)
@@ -42,6 +48,13 @@
                   (if body
                     (mapcar (lambda (x) (js-eval x :statement? T)) body)
                     ""))))
+
+(setf (js-def 'symbol)
+      (lambda (x)
+        (format nil "~A" x)))
+
+(setf (js-def 'not)
+      (lambda (x) (format nil "!(~A)" (js-eval x))))
 
 (setf (js-def 'if)
       (lambda (condition action &optional if-else)
@@ -143,6 +156,11 @@
                 (js-eval (first setup)) (js-eval (second setup)) (js-eval (third setup))
                 (loop for x in commands
                       collect (js-eval x :statement? T)))))
+
+(setf (js-def 'schedule)
+        (lambda (function)
+          (js-eval `(fun "" ()
+                        (set-timeout ,function 0)))))
 
 (setf (js-def 'foreach)
       (lambda (setup &rest commands)

@@ -56,9 +56,10 @@
 
 (defmethod initialize-instance :after ((this keyval-line) &key)
 	(with-slots (value) this
-	(let* ((colon (pos-not-escaped #\: value))
-		(valpos (position-if-not #'white? value :start (+ colon 1))))
-	(setf value `(,(subseq value 2 colon) ,(subseq value valpos))))))
+      (if (stringp value)
+	    (let* ((colon (pos-not-escaped #\: value))
+	    	(valpos (position-if-not #'white? value :start (+ colon 1))))
+	    (setf value `(,(subseq value 2 colon) ,(subseq value valpos)))))))
 
 
 (defun >line (input)
@@ -150,9 +151,13 @@
 	(!+ 'code-block := (format nil "!!~A: ~A" (first kv) (second kv)) :block-type (block-type a))))
 
 (defmethod chunk+ ((a code-block) (b keyval-line))
+  (if (and (closed a)
+           (string= (first (value b)) "CHILDCLOSING")
+           (string= (second (value b)) "-"))
+    (!+ 'keyval-line := (list (first (value b)) (html (>tags a))))
 	(if (not (closed a))
 		(let ((kv (value b)))
-		(!+ 'code-block := (format nil "~A~%!!~A: ~A" (value a) (first kv) (second kv)) :block-type (block-type a)))))
+		(!+ 'code-block := (format nil "~A~%!!~A: ~A" (value a) (first kv) (second kv)) :block-type (block-type a))))))
 
 (defmethod chunk+ ((a block-line) (b blank)) a)
 
@@ -379,7 +384,6 @@
                      (list (value c)))))
 
             (call-next-method)))
-
 (defmethod >tags ((k keyval-line))
 	(cons (match (first (value k)) (list
 		(for-val "AUDIO" #'string=
@@ -442,7 +446,8 @@
 			(!+ 'tag := "style" :& '("type" "text/css") :< (stylesheet (append *base-style* style)))
 		))
 		(!+ 'tag := "body"
-			:< (list (if header (!+ 'tag := "div" :& '("id" "header") :< header))
+			:< (list
+                 (if header (!+ 'tag := "div" :& '("id" "header") :< header))
 				 (!+ 'tag := "div" :& '("id" "art") 
 					:< (cons (if title (!+ 'tag := "h1" :< (~format title *paragraph-spechars*))) content))
 				(if closing (!+ 'tag := "div" :& '("id" "closing") :< closing))
