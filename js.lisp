@@ -49,6 +49,10 @@
                     (mapcar (lambda (x) (js-eval x :statement? T)) body)
                     ""))))
 
+(setf (js-def 'call)
+    (lambda (&rest form)
+      (js-call form)))
+
 (setf (js-def 'symbol)
       (lambda (x)
         (format nil "~A" x)))
@@ -103,8 +107,10 @@
         (format nil "var ~A = ~A;" (js-name name) (js-eval value))))
 
 (setf (js-def 'prop)
-      (lambda (obj p)
-        (format nil "~A.~A" (js-eval obj) (js-name p))))
+      (lambda (head &rest tail)
+        (reduce (lambda (a v)
+                  (format nil "~A.~A" a (if (stringp v) v (js-name v))))
+                (cons (js-eval head) tail))))
 
 (setf (js-def '@)
       (lambda (arr idx)
@@ -247,6 +253,15 @@
                    (loop for x in (rest points)
                          collect `(ctx.line-to ,(first x) ,(second x)))
                    `((ctx.stroke))))))
+
+(setf (js-def 'dom-node)
+   (lambda (type &rest props)
+     (format nil "(~A)()"
+       (js-eval `(fun nil ()
+            (let nod ((document create-element) ,type))
+            ,@(loop for prop in props
+                    collect `(= (prop nod ,(first prop)) ,(second prop)))
+            (return nod))))))
 
 (let ((counter 0))
   (defun js-id (base)
