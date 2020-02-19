@@ -16,7 +16,6 @@
 	(join (lambda (a c) (format nil "~A~%~A" a c))
 		(mapcar (lambda (x) (css-rule (first x) (second x))) rules)))
 
-
 ;; Create tag representning COPYLEFT symbol.
 (defun copyleft ()
 	(!+ 'tag := "span" :& '("style" "display:inline-block; transform:rotate(180deg)") :< "&copy;"))
@@ -33,15 +32,40 @@
 	((type :initarg := :initform "span" :reader tagtype)
 	(par :initarg :& :initform '())
 	(boolpar :initarg :&- :initform "")
-	(content :initarg :< :initform nil :reader content)))
+	(content :initarg :< :initform nil :reader content)
+    (idstyle :initarg :# :initform nil :reader idstyle)))
+
+(defmethod idstyle ((x list))
+  (if x (reduce (lambda (a v) (if v (format nil "~A~%~A" a v) a))
+                (mapcar #'idstyle x))
+    ""))
+
+(let ((no 0))
+  (defun genid (&optional (prefix "gen"))
+    (incf no)
+    (format nil "~A~A" prefix no)))
 
 (defmethod initialize-instance :after ((this tag) &key)
-	(with-slots (type content) this
+	(with-slots (type content idstyle par) this
+    (if idstyle 
+      (let ((id (or (loop for i from 0 to (\/ (length par) 2)
+                          do (if (string= (nth (* i 2) par) "id")
+                               (return (nth (+ (* i 2) 1) par))))
+                    (let ((id (genid type)))
+                      (setf par (append par `("id" ,id)))
+                      id))))
+        (setf idstyle (css-rule (format nil "#~A" id) idstyle))))
+    (loop for x in (if (listp+ content) content (list content))
+          do (if (and (typep x 'tag) (idstyle x))
+               (setf idstyle (or (and idstyle
+                                      (format nil "~A~%~A" idstyle
+                                                             (idstyle x)))
+                                 (idstyle x)))))
 	(if (and (string= type "div") (eql content nil)) (setf content ""))))
 
 (defmethod print-object ((this tag) out)
-	(with-slots (type par content) this
-	(format out "<TAG \"~A\" ~A: ~A>" type (params>str par) content)))
+	(with-slots (type par content idstyle) this
+	(format out "<TAG \"~A\" ~A // ~A : ~A>" type (params>str par) idstyle content)))
 
 (defgeneric tag= (a b))
 
@@ -145,3 +169,4 @@
 
 (defun div (style &rest content)
   (!+ 'tag := "div" :& (list "style" style) :< (apply #'append content)))
+

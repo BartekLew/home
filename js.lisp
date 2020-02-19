@@ -72,6 +72,11 @@
         (format nil "(~A)"
             (reduce (sep #\+) (mapcar #'js-eval args)))))
 
+(setf (js-def '+=)
+      (lambda (first &rest args)
+        (format nil "~A += ~A;" (js-eval first)
+            (reduce (sep #\+) (mapcar #'js-eval args)))))
+
 (setf (js-def 'and)
       (lambda (&rest args)
         (format nil "(~A)"
@@ -272,4 +277,5 @@
   (!+ 'tag := "script"
            :& '("type" "text/javascript")
            :< (loop for def in definitions
-                    collect (apply (js-def (car def)) (cdr def)))))
+                    collect (let ((ans (apply (js-def (car def)) (cdr def))))
+                              (if (eql (car def) 'fun) ans (format nil "~A;" ans))))))

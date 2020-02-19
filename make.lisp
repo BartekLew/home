@@ -22,7 +22,7 @@
 	(let ((doc (!+ 'document :from-file f
 			:header header
 			:closing closing
-			:footer `(,(copyleft) "Lew, 2019"
+			:footer `(,(copyleft) "Lew, 2019-2020"
 		"<br/><a href=\"http://creativecommons.org/licenses/by-sa/4.0/\">"
 		"<img alt=\"Creative Commons Licence\" style=\"border-width:0\""
 		" src=\"https://i.creativecommons.org/l/by-sa/4.0/80x15.png\" /></a>"))))

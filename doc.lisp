@@ -443,7 +443,9 @@
 			(!+ 'tag := "meta" :& '("charset" "utf-8"))
 			(!+ 'tag := "meta" :& '("name" "viewport" "content" "width=device-width, initial-scale=1.0"))
             (!+ 'tag := "meta" :& `("property" "og:image" "content" ,trailer))
-			(!+ 'tag := "style" :& '("type" "text/css") :< (stylesheet (append *base-style* style)))
+			(!+ 'tag := "style" :& '("type" "text/css")
+                :< (format nil "~{~A~}~A" (mapcar (lambda (x) (or (idstyle x) "")) content)
+                                          (stylesheet (append *base-style* style))))
 		))
 		(!+ 'tag := "body"
 			:< (list
@@ -453,3 +455,8 @@
 				(if closing (!+ 'tag := "div" :& '("id" "closing") :< closing))
 				(!+ 'tag := "div" :& '("id" "footer") :< footer))))))))
 
+(defun ul (&rest items)
+  (!+ 'tag := "ul" :& '("style" "margin-left: 2ex")
+      :< (loop for i in items
+               collect (!+ 'tag := "li" :& '("style" "margin-bottom: 0.5em")
+                           :< (~format i *paragraph-spechars*)))))
