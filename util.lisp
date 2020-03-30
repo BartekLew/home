@@ -241,3 +241,6 @@
      (lambda (&rest args)
        (apply #'self args))))
 
+(defun curry (fun &rest pre-args)
+  (lambda (&rest args)
+    (apply fun (append pre-args args))))

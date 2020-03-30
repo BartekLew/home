@@ -37,13 +37,16 @@
   (handler-case (apply (js-def (first form)) (rest form))
     (not-in-category () (js-call form :statement? statement?))))
 
+(defun js-name! (x)
+  (if (stringp x) x (js-name x)))
+
 (setf (js-def 'fun)
       (lambda (name args &rest body)
           (format nil "function ~A(~A){~{~A~}}~%~%"
-                  name
+                  (if name (js-name! name) "")
                   (if args
                     (reduce (lambda (a v) (format nil "~A, ~A" a v))
-                            args)
+                            (mapcar #'js-name! args))
                     "")
                   (if body
                     (mapcar (lambda (x) (js-eval x :statement? T)) body)
@@ -52,6 +55,12 @@
 (setf (js-def 'call)
     (lambda (&rest form)
       (js-call form)))
+
+(setf (js-def '->)
+    (lambda (&rest args)
+      (reduce (lambda (a v)
+                (format nil "~A.~A" a v))
+              (mapcar #'js-eval args))))
 
 (setf (js-def 'symbol)
       (lambda (x)
@@ -94,6 +103,14 @@
         (format nil "(~A)"
             (reduce (sep #\-) (mapcar #'js-eval args)))))
 
+(setf (js-def '^)
+      (lambda (a b)
+        (format nil "Math.pow(~A,~A)" (js-eval a) (js-eval b))))
+
+(setf (js-def 'floor)
+      (lambda (x)
+        (format nil "Math.floor(~A)" (js-eval x))))
+
 (setf (js-def '++)
       (lambda (arg)
         (format nil "~A++;" (js-name arg))))
@@ -124,6 +141,10 @@
 (setf (js-def '=)
       (lambda (a b)
         (format nil "~A = ~A;" (js-eval a) (js-eval b))))
+
+(setf (js-def '=.)
+      (lambda (a b)
+        (format nil "~A = ~A" (js-eval a) (js-eval b))))
 
 (setf (js-def ':=)
       (lambda (a b)
@@ -175,7 +196,7 @@
 
 (setf (js-def 'foreach)
       (lambda (setup &rest commands)
-        (format nil "for(~A in ~A) { ~{~A~} }"
+        (format nil "for(var ~A in ~A) { ~{~A~} }"
                 (js-eval (first setup)) (js-eval (second setup))
                 (loop for x in commands
                       collect (js-eval x :statement? T)))))
@@ -184,7 +205,7 @@
       (lambda (cond &rest body)
         (format nil "while (~A) {~{~A~}}"
                 (js-eval cond)
-                (mapcar #'js-eval body))))
+                (mapcar (lambda (x) (js-eval x :statement? T)) body))))
 
 (setf (js-def 'json)
       (lambda (obj)
@@ -207,9 +228,27 @@
 (setf (js-def 'continue)
       (lambda () "continue;"))
 
+(setf (js-def 'break)
+      (lambda () "break;"))
+
 (setf (js-def '@[])
       (lambda (tab index)
         (format nil "~A[~A]" (js-eval tab) (js-eval index))))
+
+(setf (js-def 'list)
+      (lambda (&rest args)
+        (format nil "[~A]"
+                (reduce (curry #'format nil "~A,~A") (mapcar #'js-eval args)))))
+
+(setf (js-def 'hash)
+      (lambda (&rest args)
+        (format nil "{~A}"
+                (reduce (curry #'format nil "~A,~A")
+                        (mapcar (lambda (x) (format nil "~A: ~S" 
+                                                    (js-eval (first x)) 
+                                                    (js-eval (second x)))) args)))))
+
+(setf (js-def 'just) (lambda (x) (format nil "~A;" (js-eval x))))
 
 (setf (js-def 'on-pixels)
       (lambda (canvas &rest transforms)
@@ -241,6 +280,12 @@
 (setf (js-def 'typeof)
       (lambda (x)
         (format nil "typeof ~A" (js-eval x))))
+
+(setf (js-def 'number?)
+      (lambda (x) (js-eval `(== (typeof ,x) "number"))))
+
+(setf (js-def 'object?)
+      (lambda (x) (js-eval `(== (typeof ,x) "object"))))
 
 (setf (js-def '[])
       (lambda (&rest elements)
