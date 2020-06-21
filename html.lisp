@@ -114,7 +114,7 @@
 		"margin-bottom: 2em"))
 	("a" ("color: inherit" "font-size: inherit"))
 	("code" ("word-break: break-any"
-		"font-family: monospace" "color: #f0e0f0" "font-size: 0.8em"
+		"font-family: monospace" "color: #f0e0f0" "font-size: 0.7em"
 		"padding: 2em" "display: block"
 		"background-color: #101010" "margin-top: 2em" "font-weight:100"
 		"margin-bottom: 2em"))
@@ -170,3 +170,18 @@
 (defun div (style &rest content)
   (!+ 'tag := "div" :& (list "style" style) :< (apply #'append content)))
 
+
+(defun latex-equation (formula name)
+  (let ((imgname (format nil "~A~A" *pwd* name)))
+    (os-run `("/usr/bin/pdflatex" -jobname home-formula
+              ,(format nil (s+ "\\documentclass[border=2pt]{standalone}"
+                               "\\usepackage{amsmath}"
+                               "\\begin{document}"
+                               "\\Large"
+                               "\\begin{math}"
+                               "~A"
+                               "\\end{math}"
+                               "\\end{document}") formula)))
+    (os-run `("/usr/bin/convert" -density 300 "home-formula.pdf" -quality 90 ,imgname))
+    (!+ 'tag := "div" :& '("style" "text-align: center")
+        :< (!+ 'tag := "img" :& `("src" ,name)))))

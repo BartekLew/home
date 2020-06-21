@@ -244,3 +244,17 @@
 (defun curry (fun &rest pre-args)
   (lambda (&rest args)
     (apply fun (append pre-args args))))
+
+(defun sh-name (name)
+  (cond ((symbolp name) (string-downcase (format nil "~A" name)))
+        ((stringp name) (format nil "~A" name))
+        (t (format nil "~A" name))))
+
+(defun os-run (args)
+  (let ((proc (sb-ext:run-program (first args)
+                                  (mapcar #'sh-name (rest args)) :output :stream)))
+    (if (= (process-exit-code proc) 0) proc
+      (error 
+                     (loop for x = (read-line (process-output proc) nil nil)
+                           while (not (eq x nil))
+                           collect x)))))
