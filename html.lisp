@@ -185,3 +185,9 @@
     (os-run `("/usr/bin/convert" -density 300 "home-formula.pdf" -quality 90 ,imgname))
     (!+ 'tag := "div" :& '("style" "text-align: center")
         :< (!+ 'tag := "img" :& `("src" ,name)))))
+
+(defun graphviz-graph (formula name)
+  (let ((imgname (format nil "~A~A" *pwd* name)))
+    (os-run `("/usr/bin/dot" "-Tpng" "-o" ,name) :input formula)
+    (!+ 'tag := "div" :& '("style" "text-align: center")
+        :< (!+ 'tag := "img" :& `("src" ,name)))))

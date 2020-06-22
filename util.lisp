@@ -250,11 +250,19 @@
         ((stringp name) (format nil "~A" name))
         (t (format nil "~A" name))))
 
-(defun os-run (args)
+(defun os-run (args &key input)
   (let ((proc (sb-ext:run-program (first args)
-                                  (mapcar #'sh-name (rest args)) :output :stream)))
+                                  (mapcar #'sh-name (rest args)) :output :stream
+                                  :input :stream :wait nil)))
+    (if input
+        (handler-case (let ((i (sb-ext:process-input proc)))
+                        (format i "~A" input)
+                        (finish-output i)
+                        (close i))
+            (error (e) (format nil "!! ~A~%" e))))
+    (sb-ext:process-wait proc)
     (if (= (process-exit-code proc) 0) proc
       (error 
-                     (loop for x = (read-line (process-output proc) nil nil)
+                     (car (loop for x = (read-line (process-output proc) nil nil)
                            while (not (eq x nil))
-                           collect x)))))
+                           collect x))))))

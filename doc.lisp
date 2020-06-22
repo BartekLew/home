@@ -248,6 +248,7 @@
 		(lambda (content)
 			(!+ 'tag := "i" :< (~format content *paragraph-spechars*))))))))
 
+(defvar *head-spechars* (cons (!+ 'spechar := #\Newline :! (replace-fun "<br/>")) *paragraph-spechars*))
 (defvar *poem-spechars* (append *paragraph-spechars*
 	`(,(!+ 'spechar := #\Newline :! (lambda (iterator)
 		(with-slots (pos text) iterator
@@ -361,7 +362,8 @@
 
 (defmethod >tags ((h header))
 	(cons (!+ 'tag := (format nil "h~a" (level h)) :& `("id" ,(page-bookmark h))
-		:< (~format (value h) *paragraph-spechars*)) (call-next-method)))
+		:< (~format (value h) *head-spechars*))
+        (call-next-method)))
 
 (defun next-form (string)
   (if (position-if (lambda (x) (not (find x '(#\Space #\Newline #\Tab)))) string)
@@ -451,7 +453,7 @@
 			:< (list
                  (if header (!+ 'tag := "div" :& '("id" "header") :< header))
 				 (!+ 'tag := "div" :& '("id" "art") 
-					:< (cons (if title (!+ 'tag := "h1" :< (~format title *paragraph-spechars*))) content))
+					:< (cons (if title (!+ 'tag := "h1" :< (~format title *head-spechars*))) content))
 				(if closing (!+ 'tag := "div" :& '("id" "closing") :< closing))
 				(!+ 'tag := "div" :& '("id" "footer") :< footer))))))))
 
