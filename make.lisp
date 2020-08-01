@@ -4,7 +4,8 @@
 (defvar *pwd* ".")
 (defun use (file)
   (load (format nil "~A/~A" *pwd* file))
-  nil)
+  (if (boundp '**home-modinit)
+     (apply (eval '**home-modinit) nil)))
 
 (let ((argv (cdr sb-ext:*posix-argv*)))
 (if (eql argv nil) (progn (format nil "Missing parameter") (sb-ext:quit)))
