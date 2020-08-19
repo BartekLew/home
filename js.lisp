@@ -120,8 +120,10 @@
 
 (setf (js-def '-)
       (lambda (&rest args)
-        (format nil "(~A)"
-            (reduce (sep #\-) (mapcar #'js-eval args)))))
+        (if (= (length args) 1)
+            (format nil "(-~A)" (js-eval (first args)))
+            (format nil "(~A)"
+               (reduce (sep #\-) (mapcar #'js-eval args))))))
 
 (setf (js-def '^)
       (lambda (a b)
@@ -138,6 +140,10 @@
 (setf (js-def '--)
       (lambda (arg)
         (format nil "~A--;" (js-name arg))))
+
+(setf (js-def '--.)
+      (lambda (arg)
+        (format nil "~A--" (js-name arg))))
 
 (setf (js-def '*)
       (lambda (&rest args)
@@ -252,8 +258,8 @@
       (lambda () "break;"))
 
 (setf (js-def '@[])
-      (lambda (tab index)
-        (format nil "~A[~A]" (js-eval tab) (js-eval index))))
+      (lambda (tab &rest indexes)
+        (format nil "~A~{[~A]~}" (js-eval tab) (mapcar #'js-eval indexes))))
 
 (setf (js-def 'list)
       (lambda (&rest args)
@@ -297,15 +303,31 @@
       (lambda (x)
         (format nil "Array.isArray(~A)" (js-eval x))))
 
+(setf (js-def 'now)
+      (lambda ()
+        "new Date().getTime()"))
+
 (setf (js-def 'typeof)
       (lambda (x)
         (format nil "typeof ~A" (js-eval x))))
+
+(setf (js-def 'keys)
+      (lambda (x)
+        (format nil "Object.keys(~A)" (js-eval x))))
+
+(setf (js-def 'values)
+      (lambda (x)
+        (format nil "Object.keys(~A).map(x => ~A[x])"
+            (js-eval x) (js-eval x))))
 
 (setf (js-def 'undef?)
       (lambda (x) (js-eval `(== (typeof ,x) "undefined"))))
 
 (setf (js-def 'number?)
       (lambda (x) (js-eval `(== (typeof ,x) "number"))))
+
+(setf (js-def 'function?)
+      (lambda (x) (js-eval `(== (typeof ,x) "function"))))
 
 (setf (js-def 'object?)
       (lambda (x) (js-eval `(== (typeof ,x) "object"))))
@@ -323,9 +345,14 @@
                      (ctx.begin-path)
                      (= ctx.line-width ,width)
                      (ctx.move-to ,(@ points '(0 0)) ,(@ points '(0 1))))
-                   (loop for x in (rest points)
-                         collect `(ctx.line-to ,(first x) ,(second x)))
-                   `((ctx.stroke))))))
+                     (loop for x in (rest points)
+                           collect `(ctx.line-to ,(first x) ,(second x)))
+                   `((ctx.stroke)
+                     (ctx.begin-path)
+                     (= ctx.fill-style "#000000")
+                     (ctx.arc ,(@ points '(0 0)) ,(@ points '(0 1)) ,(/ width 2)
+                              0 (* 2 (_pi)))
+                     (ctx.fill))))))
 
 (setf (js-def 'dom-node)
    (lambda (type &rest props)
@@ -335,6 +362,23 @@
             ,@(loop for prop in props
                     collect `(= (prop nod ,(first prop)) ,(second prop)))
             (return nod))))))
+
+(setf (js-def '_pi)
+  (lambda ()
+    "Math.PI"))
+
+(setf (js-def 'sin)
+  (lambda (arg)
+    (format nil "Math.sin(~A)" (js-eval arg))))
+
+(setf (js-def 'cos)
+  (lambda (arg)
+    (format nil "Math.cos(~A)" (js-eval arg))))
+
+(setf (js-def 'hashcat)
+  (lambda (&rest hashes)
+    (format nil "Object.assign({}, ~A)"
+            (reduce (sep #\,) (mapcar #'js-eval hashes)))))
 
 (let ((counter 0))
   (defun js-id (base)

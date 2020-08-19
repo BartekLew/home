@@ -462,3 +462,9 @@
       :< (loop for i in items
                collect (!+ 'tag := "li" :& '("style" "margin-bottom: 0.5em")
                            :< (~format i *paragraph-spechars*)))))
+
+(defun ol (&rest items)
+  (!+ 'tag := "ol" :& '("style" "margin-left: 2ex")
+      :< (loop for i in items
+               collect (!+ 'tag := "li" :& '("style" "margin-bottom: 0.5em")
+                           :< (~format i *paragraph-spechars*)))))
