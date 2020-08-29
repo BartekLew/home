@@ -69,6 +69,9 @@
 (setf (js-def 'not)
       (lambda (x) (format nil "!(~A)" (js-eval x))))
 
+(setf (js-def 'block)
+      #'js-block)
+
 (setf (js-def 'if)
       (lambda (condition action &optional if-else)
         (format nil "if (~a) {~{~a~}}~a~%"
@@ -391,3 +394,87 @@
            :< (loop for def in definitions
                     collect (let ((ans (apply (js-def (car def)) (cdr def))))
                               (if (eql (car def) 'fun) ans (format nil "~A;" ans))))))
+
+(category js-typetest)
+
+(setf (js-typetest 'list)
+    (lambda (name &optional len)
+        `((if (not (array? ,name))
+            ((throw (+ "Argument nie jest listą: "
+                       ,name))))
+          ,@(if len
+                `((if (!= (-> ,name length) ,len)
+                     ((throw (+ "Zła długość listy " ,(symdc name))))))))))
+
+(setf (js-typetest 'int-list)
+    (lambda (name &optional len)
+        `((if (not (array? ,name))
+            ((throw (+ "Argument nie jest listą: "
+                       ,name))))
+          ((,name map) (fun nil (x)
+                          (if (not (number? x))
+                             ((throw (+ "Zły typ listy (nie tylko liczby): "
+                                        x))))))
+          ,@(if len
+                `((if (!= (-> ,name length) ,len)
+                     ((throw (+ "Zła długość listy " ,(symdc name))))))))))
+
+(setf (js-typetest 'number)
+    (lambda (name)
+        `((if (not (number? ,name))
+             ((throw (+ "Argument powinien być listą: "
+                        ,(symdc name))))))))
+    
+(setf (js-typetest 'function)
+    (lambda (name)
+        `((if (not (function? ,name))
+             ((throw (+ "Argument powinien być funkcją: "
+                        ,(symdc name))))))))
+
+(setf (js-def 'defn)
+  (lambda (name args &rest body)
+    (let*((argnames (mapcar (lambda (x)
+                               (if (listp+ x) (second x) x))
+                            (remove-if #'ampsym? args)))
+          (constr (remove-if-not #'listp args))
+          (argc (if (find '&rest args)
+                    (length argnames) nil))
+          (optp (position '&optional args))
+          (rest (let ((p (position '&rest args)))
+                  (if (and p (not (eql (- (length args) 2) p)))
+                     (error (format nil "wrong position of &rest in: ~S"
+                                    (list name args))))
+                  p))
+          (lencond (cond (optp `(or (< arguments.length ,optp)
+                                    (> arguments.length ,(length argnames))))
+                         ((not rest)
+                            `(!= arguments.length ,(length argnames)))
+                         (t `(< arguments.length ,rest)))))
+
+        (if (and optp rest)
+            (error "&optional and &rest at the same time in js:defn is not allowed"))
+
+        (let ((fundef `(,(if rest (subseq argnames 0 rest)
+                                 argnames)
+                        ,@(if lencond `((if ,lencond
+                                         ((throw (+ "Zła liczba argumentów dla funkcji "
+                                                    ,(symdc (format nil "~A" name)) ": "
+                                                    (((values arguments)
+                                                     join) ", ")))))))
+                        ,@(apply #'append
+                              (loop for c in constr
+                                    for i from 0
+                                    collect (let ((cnd (apply (js-typetest (first c)) (rest c))))
+                                               (if (and optp (>= i optp))
+                                                  `((if (not (undef? ,(second c)))
+                                                      ,cnd))
+                                                  cnd))))
+
+                        ,@(if rest `((let ,(car (last argnames))
+                                     (((values arguments) slice) ,rest))))
+
+                        ,@body)))
+              (if (listp name)
+                    (js-eval `(= (@[] ,(read-from-string (js-eval (first name))) ,@(mapcar #'js-eval (rest name)))
+                                 (fun nil ,@fundef)))
+                    (js-eval `(fun ,(js-eval name) ,@fundef)))))))

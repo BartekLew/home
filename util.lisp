@@ -266,3 +266,10 @@
                      (car (loop for x = (read-line (process-output proc) nil nil)
                            while (not (eq x nil))
                            collect x))))))
+
+(defun ampsym? (x)
+  (eql (char (format nil "~a" x) 0) #\&))
+
+(defun symdc (x)
+  (string-downcase (format nil "~A" x)))
+
