@@ -1,0 +1,9 @@
+((no-canvas "Błąd: brak canvas!")
+ (wrong-list-len "Zła długość listy ")
+ (arg-not-list "Argument nie jest listą: ")
+ (arg-not-number "Argument powinien być liczbą: ")
+ (not-int-list "Zły typ listy (nie tylko liczby): ")
+ (arg-not-fun "Argument powinien być funkcją: ")
+ (wrong-argc "Zła liczba argumentów dla funkcji: ")
+ (more-arts "Więcej artykułów"))
+

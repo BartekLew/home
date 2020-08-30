@@ -273,3 +273,6 @@
 (defun symdc (x)
   (string-downcase (format nil "~A" x)))
 
+(defun list! (x)
+  (if (listp x) x (list x)))
+

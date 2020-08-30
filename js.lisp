@@ -400,11 +400,11 @@
 (setf (js-typetest 'list)
     (lambda (name &optional len)
         `((if (not (array? ,name))
-            ((throw (+ "Argument nie jest listą: "
+            ((throw (+ ,(txt 'arg-not-list)
                        ,name))))
           ,@(if len
                 `((if (!= (-> ,name length) ,len)
-                     ((throw (+ "Zła długość listy " ,(symdc name))))))))))
+                     ((throw (+ ,(txt 'wrong-list-len) ,(symdc name))))))))))
 
 (setf (js-typetest 'int-list)
     (lambda (name &optional len)
@@ -413,23 +413,22 @@
                        ,name))))
           ((,name map) (fun nil (x)
                           (if (not (number? x))
-                             ((throw (+ "Zły typ listy (nie tylko liczby): "
+                             ((throw (+ ,(txt 'not-int-list)
                                         x))))))
           ,@(if len
                 `((if (!= (-> ,name length) ,len)
-                     ((throw (+ "Zła długość listy " ,(symdc name))))))))))
+                     ((throw (+ ,(txt 'wrong-list-len) ,(symdc name))))))))))
 
 (setf (js-typetest 'number)
     (lambda (name)
         `((if (not (number? ,name))
-             ((throw (+ "Argument powinien być listą: "
+             ((throw (+ ,(txt 'arg-not-number)
                         ,(symdc name))))))))
     
 (setf (js-typetest 'function)
     (lambda (name)
         `((if (not (function? ,name))
-             ((throw (+ "Argument powinien być funkcją: "
-                        ,(symdc name))))))))
+             ((throw (+ ,(txt 'arg-not-fun) ,(symdc name))))))))
 
 (setf (js-def 'defn)
   (lambda (name args &rest body)
@@ -457,7 +456,7 @@
         (let ((fundef `(,(if rest (subseq argnames 0 rest)
                                  argnames)
                         ,@(if lencond `((if ,lencond
-                                         ((throw (+ "Zła liczba argumentów dla funkcji "
+                                         ((throw (+ ,(txt 'wrong-argc)
                                                     ,(symdc (format nil "~A" name)) ": "
                                                     (((values arguments)
                                                      join) ", ")))))))
