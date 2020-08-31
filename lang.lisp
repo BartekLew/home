@@ -3,6 +3,13 @@
 (defvar *lang* (mapcar (lambda (x) (format nil "~a" x))
                     (list! (splitstr (or (sb-unix::posix-getenv "HOME_LANG")
                                           "") #\ ))))
+
+(defun read-from-file (file)
+    (handler-case
+        (read-from-string (join (sep #\ ) (<f file)))
+        (error (e) (format T "Error reading language file: ~A~%"
+                           file))))
+
 (let ((defaults '((no-canvas "Error: no canvas support!")
                   (wrong-list-len "Wrong list length:")
                   (arg-not-list "Argument is not list: ")
@@ -15,9 +22,6 @@
     (loop for text in (if *lang*
                          (append defaults
                                  (apply #'append
-                                        (mapcar (lambda (x)
-                                                    (read-from-string (join (sep #\ )
-                                                                      (<f x))))
-                                                 *lang*)))
+                                        (mapcar #'read-from-file *lang*)))
                          defaults)
           do (setf (txt (first text)) (second text))))

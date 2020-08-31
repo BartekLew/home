@@ -32,8 +32,10 @@
 	(>f (outf f) (html doc))
 	(if (refs doc) (doList (ref (refs doc)) (build-doc ref (head-for (outf ref) (outf f)) (childclosing doc))))))
 
-(doList (f argv)
-(let ((*pwd* (filedir f)))
-	(build-doc f))))
+(handler-case
+  (doList (f argv)
+    (let ((*pwd* (filedir f)))
+  	  (build-doc f)))
+  (error (e) (format T "Compilation error: ~a~%" e))))
 
 (sb-ext:quit)
