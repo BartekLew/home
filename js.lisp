@@ -32,10 +32,21 @@
               "")
           (if statement? #\; "")))
 
+(define-condition js-error (error)
+  ((form :initarg :in :reader form)
+   (msg :initarg :msg :reader msg)))
+
+(defmethod print-object ((this js-error) out)
+  (format out "JS error in ~S.~%    ~A~%"
+              (form this) (msg this)))
+
 (defun js-eval (form &key statement?)
-  (if (not (listp form)) (return-from js-eval (js-name form)))
-  (handler-case (apply (js-def (first form)) (rest form))
-    (not-in-category () (js-call form :statement? statement?))))
+  (handler-case 
+    (if (not (listp form)) (return-from js-eval (js-name form))
+      (handler-case (apply (js-def (first form)) (rest form))
+        (not-in-category () (js-call form :statement? statement?))))
+    (js-error (e) (error e))
+    (error (e) (error 'js-error :in form :msg e))))
 
 (defun js-name! (x)
   (if (stringp x) x (js-name x)))
