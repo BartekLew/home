@@ -21,6 +21,7 @@
 	(!+ 'tag := "a" :& `("href" ,(relative-path file parent)) :< "więcej artykułów"))
 
 (defun build-doc (f &optional (header nil) closing)
+	(format t "build ~A~%" f)
 	(let ((doc (!+ 'document :from-file f
 			:header header
 			:closing closing
@@ -28,9 +29,11 @@
 		"<br/><a href=\"http://creativecommons.org/licenses/by-sa/4.0/\">"
 		"<img alt=\"Creative Commons Licence\" style=\"border-width:0\""
 		" src=\"https://i.creativecommons.org/l/by-sa/4.0/80x15.png\" /></a>"))))
-	(format t "build ~A~%" f)
 	(>f (outf f) (html doc))
-	(if (refs doc) (doList (ref (refs doc)) (build-doc ref (head-for (outf ref) (outf f)) (childclosing doc))))))
+	(if (refs doc)
+        (doList (ref (refs doc))
+            (let ((*pwd* (filedir ref)))
+                (build-doc ref (head-for (outf ref) (outf f)) (childclosing doc)))))))
 
 (handler-case
   (doList (f argv)
