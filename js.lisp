@@ -291,7 +291,7 @@
       (lambda (&rest args)
         (format nil "{~A}"
                 (reduce (curry #'format nil "~A,~A")
-                        (mapcar (lambda (x) (format nil "~A: ~S" 
+                        (mapcar (lambda (x) (format nil "~A: ~A" 
                                                     (js-eval (first x)) 
                                                     (js-eval (second x)))) args)))))
 
